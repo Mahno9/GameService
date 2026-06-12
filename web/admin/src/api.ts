@@ -32,6 +32,20 @@ export class ApiError extends Error {
   }
 }
 
+export interface TileJob {
+  id: string;
+  kind: string;
+  bbox: Bbox;
+  minZoom: number;
+  maxZoom: number;
+  status: string;
+  completedZooms: number[];
+  tilesDone: number;
+  tilesTotal: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const api = {
   login: (login: string, password: string) =>
     request<{ ok: true }>('/api/admin/login', {
@@ -43,4 +57,5 @@ export const api = {
   getSettings: () => request<Settings>('/api/settings'),
   updateSettings: (patch: Partial<Settings>) =>
     request<Settings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(patch) }),
+  getTileJobs: () => request<TileJob[]>('/api/admin/tile-jobs'),
 };

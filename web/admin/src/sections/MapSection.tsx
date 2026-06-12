@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { api, type Bbox } from '../api';
+import { TileGenerationPanel } from './TileGenerationPanel';
 
 const OSM_STYLE: maplibregl.StyleSpecification = {
   version: 8,
@@ -39,6 +40,7 @@ export function MapSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [bbox, setBbox] = useState<Bbox | null>(null);
+  const [savedBbox, setSavedBbox] = useState<Bbox | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [saved, setSaved] = useState(false);
   const drawingRef = useRef(false);
@@ -71,6 +73,7 @@ export function MapSection() {
       api.getSettings().then((s) => {
         if (s.map_bbox) {
           setBbox(s.map_bbox);
+          setSavedBbox(s.map_bbox);
           const [w, so, e, n] = s.map_bbox;
           map.fitBounds([w, so, e, n], { padding: 40, duration: 0 });
         }
@@ -133,6 +136,7 @@ export function MapSection() {
     if (!bbox) return;
     await api.updateSettings({ map_bbox: bbox });
     setSaved(true);
+    setSavedBbox(bbox);
   }
 
   return (
@@ -141,7 +145,7 @@ export function MapSection() {
         <button onClick={startDrawing} disabled={drawing}>
           {drawing ? 'Растяните прямоугольник…' : 'Выбрать участок'}
         </button>
-        <button onClick={save} disabled={!bbox || saved}>
+        <button onClick={() => { void save(); }} disabled={!bbox || saved}>
           {saved ? 'Сохранено ✓' : 'Сохранить участок'}
         </button>
         {bbox && (
@@ -150,7 +154,10 @@ export function MapSection() {
           </span>
         )}
       </div>
-      <div ref={containerRef} className="map-container" />
+      <div className="map-section-body">
+        <div ref={containerRef} className="map-container" />
+        <TileGenerationPanel savedBbox={savedBbox} />
+      </div>
     </div>
   );
 }
