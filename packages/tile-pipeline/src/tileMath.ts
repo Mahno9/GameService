@@ -45,6 +45,31 @@ export function tilesForBbox(bbox: Bbox, z: number): TileCoord[] {
   return out;
 }
 
+/** Fractional web-mercator world X (in pixels) for a longitude at zoom z. */
+export function lonToWorldX(lon: number, z: number, size: number): number {
+  return ((lon + 180) / 360) * 2 ** z * size;
+}
+
+/** Fractional web-mercator world Y (in pixels) for a latitude at zoom z. */
+export function latToWorldY(lat: number, z: number, size: number): number {
+  const rad = (lat * Math.PI) / 180;
+  const merc = (1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2;
+  return merc * 2 ** z * size;
+}
+
+/** lon/lat → pixel coords local to a tile (origin at the tile's top-left). */
+export function lonLatToTilePixel(
+  lon: number,
+  lat: number,
+  coord: TileCoord,
+  size: number,
+): { px: number; py: number } {
+  return {
+    px: lonToWorldX(lon, coord.z, size) - coord.x * size,
+    py: latToWorldY(lat, coord.z, size) - coord.y * size,
+  };
+}
+
 export function countTiles(bbox: Bbox, zooms: number[]): number {
   let total = 0;
   for (const z of zooms) {
