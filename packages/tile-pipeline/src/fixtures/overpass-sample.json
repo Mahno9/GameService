@@ -1,0 +1,97 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API",
+  "elements": [
+    {
+      "type": "way",
+      "id": 1001,
+      "bounds": { "minlat": 55.755, "minlon": 37.617, "maxlat": 55.7553, "maxlon": 37.6175 },
+      "nodes": [1, 2, 3, 4, 1],
+      "geometry": [
+        { "lat": 55.755, "lon": 37.617 },
+        { "lat": 55.755, "lon": 37.6175 },
+        { "lat": 55.7553, "lon": 37.6175 },
+        { "lat": 55.7553, "lon": 37.617 },
+        { "lat": 55.755, "lon": 37.617 }
+      ],
+      "tags": { "building": "yes", "height": "21.5" }
+    },
+    {
+      "type": "way",
+      "id": 1002,
+      "bounds": { "minlat": 55.7555, "minlon": 37.617, "maxlat": 55.7558, "maxlon": 37.6175 },
+      "nodes": [5, 6, 7, 8, 5],
+      "geometry": [
+        { "lat": 55.7555, "lon": 37.617 },
+        { "lat": 55.7555, "lon": 37.6175 },
+        { "lat": 55.7558, "lon": 37.6175 },
+        { "lat": 55.7558, "lon": 37.617 },
+        { "lat": 55.7555, "lon": 37.617 }
+      ],
+      "tags": { "building": "apartments", "building:levels": "5" }
+    },
+    {
+      "type": "way",
+      "id": 1003,
+      "bounds": { "minlat": 55.754, "minlon": 37.616, "maxlat": 55.756, "maxlon": 37.62 },
+      "nodes": [9, 10],
+      "geometry": [
+        { "lat": 55.754, "lon": 37.616 },
+        { "lat": 55.756, "lon": 37.62 }
+      ],
+      "tags": { "highway": "residential", "name": "Тестовая улица" }
+    },
+    {
+      "type": "way",
+      "id": 1004,
+      "bounds": { "minlat": 55.7542, "minlon": 37.6162, "maxlat": 55.7561, "maxlon": 37.6201 },
+      "nodes": [11, 12],
+      "geometry": [
+        { "lat": 55.7542, "lon": 37.6162 },
+        { "lat": 55.7561, "lon": 37.6201 }
+      ],
+      "tags": { "highway": "footway" }
+    },
+    {
+      "type": "way",
+      "id": 1005,
+      "bounds": { "minlat": 55.753, "minlon": 37.615, "maxlat": 55.7535, "maxlon": 37.6158 },
+      "nodes": [13, 14, 15, 13],
+      "geometry": [
+        { "lat": 55.753, "lon": 37.615 },
+        { "lat": 55.753, "lon": 37.6158 },
+        { "lat": 55.7535, "lon": 37.6154 },
+        { "lat": 55.753, "lon": 37.615 }
+      ],
+      "tags": { "natural": "water" }
+    },
+    {
+      "type": "way",
+      "id": 1006,
+      "bounds": { "minlat": 55.7561, "minlon": 37.618, "maxlat": 55.7568, "maxlon": 37.619 },
+      "nodes": [16, 17, 18, 19, 16],
+      "geometry": [
+        { "lat": 55.7561, "lon": 37.618 },
+        { "lat": 55.7561, "lon": 37.619 },
+        { "lat": 55.7568, "lon": 37.619 },
+        { "lat": 55.7568, "lon": 37.618 },
+        { "lat": 55.7561, "lon": 37.618 }
+      ],
+      "tags": { "leisure": "park", "name": "Тестовый парк" }
+    },
+    {
+      "type": "way",
+      "id": 1007,
+      "bounds": { "minlat": 55.752, "minlon": 37.614, "maxlat": 55.7528, "maxlon": 37.6149 },
+      "nodes": [20, 21, 22, 23, 20],
+      "geometry": [
+        { "lat": 55.752, "lon": 37.614 },
+        { "lat": 55.752, "lon": 37.6149 },
+        { "lat": 55.7528, "lon": 37.6149 },
+        { "lat": 55.7528, "lon": 37.614 },
+        { "lat": 55.752, "lon": 37.614 }
+      ],
+      "tags": { "landuse": "industrial" }
+    }
+  ]
+}

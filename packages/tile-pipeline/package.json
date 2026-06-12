@@ -1,0 +1,21 @@
+{
+  "name": "@gameservice/tile-pipeline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "geojson-vt": "^4.0.2",
+    "osmtogeojson": "^3.0.0-beta.5",
+    "vt-pbf": "^3.1.3"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.14",
+    "@types/geojson-vt": "^3.2.5",
+    "vitest": "^2.1.0"
+  }
+}
