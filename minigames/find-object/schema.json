@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Найди предмет",
+  "description": "Игрок ищет заданные предметы на большом фоновом изображении (аналог «Где Уолдо»).",
+  "type": "object",
+  "required": ["backgroundImage", "targets"],
+  "properties": {
+    "backgroundImage": {
+      "type": "string",
+      "title": "Фоновое изображение",
+      "x-type": "asset:image"
+    },
+    "overlays": {
+      "type": "array",
+      "title": "Оверлеи (декор)",
+      "description": "Декоративные изображения-«шум», размещаемые поверх фона.",
+      "items": {
+        "type": "object",
+        "required": ["image", "x", "y"],
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "Изображение",
+            "x-type": "asset:image"
+          },
+          "x": {
+            "type": "number",
+            "title": "X (пиксели фона)"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y (пиксели фона)"
+          },
+          "rotation": {
+            "type": "number",
+            "title": "Поворот (градусы)",
+            "default": 0
+          },
+          "colorFilter": {
+            "type": "string",
+            "title": "Цветовой фильтр (CSS filter)",
+            "default": ""
+          },
+          "zIndex": {
+            "type": "integer",
+            "title": "Порядок слоя (z-index)",
+            "default": 0
+          },
+          "scale": {
+            "type": "number",
+            "title": "Масштаб",
+            "default": 1
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "array",
+      "title": "Целевые предметы (упорядоченный список)",
+      "description": "Искомые предметы в порядке очереди. Первые три не найденных показываются игроку.",
+      "items": {
+        "type": "object",
+        "required": ["image", "x", "y"],
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "Изображение",
+            "x-type": "asset:image"
+          },
+          "x": {
+            "type": "number",
+            "title": "X (пиксели фона)"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y (пиксели фона)"
+          },
+          "rotation": {
+            "type": "number",
+            "title": "Поворот (градусы)",
+            "default": 0
+          },
+          "colorFilter": {
+            "type": "string",
+            "title": "Цветовой фильтр (CSS filter)",
+            "default": ""
+          },
+          "zIndex": {
+            "type": "integer",
+            "title": "Порядок слоя (z-index)",
+            "default": 0
+          },
+          "scale": {
+            "type": "number",
+            "title": "Масштаб",
+            "default": 1
+          }
+        }
+      }
+    },
+    "scoreThresholds": {
+      "type": "array",
+      "title": "Пороги баллов по времени",
+      "items": {
+        "type": "object",
+        "required": ["maxSeconds", "points"],
+        "properties": {
+          "maxSeconds": {
+            "type": "integer",
+            "title": "Макс. секунд"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Баллы"
+          }
+        }
+      }
+    },
+    "sounds": {
+      "type": "object",
+      "title": "Звуки",
+      "properties": {
+        "found": {
+          "type": "string",
+          "title": "Нахождение предмета",
+          "x-type": "asset:audio"
+        },
+        "win": {
+          "type": "string",
+          "title": "Победа",
+          "x-type": "asset:audio"
+        },
+        "music": {
+          "type": "string",
+          "title": "Фоновая музыка",
+          "x-type": "asset:audio"
+        }
+      }
+    }
+  }
+}
