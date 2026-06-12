@@ -10,10 +10,6 @@ const TILE_KINDS = ['vector', 'raster'] as const;
 type TileKind = (typeof TILE_KINDS)[number];
 
 const EXT: Record<TileKind, string> = { vector: 'mvt', raster: 'webp' };
-const CONTENT_TYPE: Record<TileKind, string> = {
-  vector: 'application/x-protobuf',
-  raster: 'image/webp',
-};
 
 interface TileJobRow {
   id: string;
@@ -62,12 +58,8 @@ export async function tilesRoutes(app: FastifyInstance) {
     root: paths.tiles(),
     prefix: '/tiles/',
     decorateReply: false,
-    setHeaders(res, filePath) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-      if (filePath.endsWith('.mvt')) {
-        res.setHeader('Content-Type', CONTENT_TYPE.vector);
-      }
-    },
+    maxAge: '1y',
+    immutable: true,
   });
 
   // ---- tile jobs CRUD ----

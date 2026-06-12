@@ -20,6 +20,8 @@ export async function buildApp() {
 
   await app.register(fastifyMultipart, {
     limits: { fileSize: 30 * 1024 * 1024, files: 200 },
+    // tile uploads encode the tile path (vector/z/x/y.mvt) in the filename
+    preservePath: true,
   });
 
   await registerAuth(app);
