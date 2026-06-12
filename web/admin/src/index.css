@@ -15,3 +15,117 @@ body {
   background: #f5f6fa;
   color: #222;
 }
+
+button {
+  font: inherit;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input {
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+/* login */
+.login-screen {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 300px;
+  padding: 32px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.login-error {
+  color: #dc2626;
+  font-size: 14px;
+}
+
+/* layout */
+.layout {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.sidebar button.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.sidebar-spacer {
+  flex: 1;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* map section */
+.map-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.bbox-label {
+  font-family: monospace;
+  font-size: 13px;
+  color: #475569;
+}
+
+.map-container {
+  flex: 1;
+  min-height: 0;
+}
