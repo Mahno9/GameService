@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { config } from './config.js';
+import { registerAuth } from './plugins/auth.js';
 import { registerStatic } from './plugins/static.js';
 
 export async function buildApp() {
@@ -9,6 +10,7 @@ export async function buildApp() {
 
   app.get('/api/health', async () => ({ status: 'ok', uptime: process.uptime() }));
 
+  await registerAuth(app);
   await registerStatic(app);
 
   return app;
