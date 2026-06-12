@@ -66,6 +66,14 @@ export interface ServerState {
   [key: string]: unknown;
 }
 
+export interface LeaderboardRow {
+  name: string;
+  avatarEmoji: string;
+  score: number;
+  isPlayer: boolean;
+  isReal: boolean;
+}
+
 export type SyncOutcome = 'accepted' | 'merged' | 'server-newer';
 
 export interface SyncResponse {
@@ -111,4 +119,6 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     }),
+  getLeaderboard: (userId: string) =>
+    request<LeaderboardRow[]>(`/api/leaderboard?userId=${encodeURIComponent(userId)}`),
 };

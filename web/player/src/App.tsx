@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import maplibregl from 'maplibre-gl';
-import { api, type Bbox, type Minigame, type Poi } from './api';
+import { api, type Bbox, type Minigame, type Poi, type PoiReward } from './api';
 import { MapView } from './map/MapView';
 import { Joystick } from './map/Joystick';
 import { PoiMarkers } from './map/PoiMarkers';
@@ -15,6 +15,9 @@ import { localState } from './state/localState';
 import { startSync, syncNow } from './state/sync';
 import { RegistrationScreen } from './ui/RegistrationScreen';
 import { Toast } from './ui/Toast';
+import { RewardPopup } from './ui/RewardPopup';
+import { InventoryScreen } from './ui/InventoryScreen';
+import { LeaderboardScreen } from './ui/LeaderboardScreen';
 import type { MinigameResult } from './game/minigameLoader';
 
 function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
@@ -40,6 +43,12 @@ interface BootData {
   minigames: Minigame[];
 }
 
+interface PendingReward {
+  poiId: string;
+  reward: PoiReward;
+  won: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
@@ -63,6 +72,13 @@ export function App() {
 
   // iOS compass permission gate: show "Начать игру" button only when needed.
   const [needsStartGesture, setNeedsStartGesture] = useState(false);
+
+  // Reward popup: set when a game finishes and reward hasn't been granted yet.
+  const [pendingReward, setPendingReward] = useState<PendingReward | null>(null);
+
+  // Overlay screens.
+  const [showInventory, setShowInventory] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const providerRef = useRef<PositionProvider | null>(null);
 
@@ -221,9 +237,39 @@ export function App() {
     return sum;
   }, [state.poiResults]);
 
+  // Whether all POIs have been completed (required to unlock leaderboard button).
+  const allCompleted = useMemo(() => {
+    const pois = boot?.pois ?? [];
+    if (pois.length === 0) return false;
+    return pois.every((poi) => poi.id in state.poiResults);
+  }, [boot, state.poiResults]);
+
+  // -------------------------------------------------------------------------
+  // Game result handler: record result, then show reward popup if first time.
+  // -------------------------------------------------------------------------
   function handleResult(poiId: string, result: MinigameResult) {
+    // Record the result first (this sets rewardGranted = false on first attempt).
     localState.recordGameResult(poiId, result.score, result.won);
+
+    // Check state after recording: only show popup when rewardGranted is false.
+    const afterRecord = localState.getSnapshot().poiResults[poiId];
+    if (afterRecord !== undefined && !afterRecord.rewardGranted) {
+      // Find the POI to get its reward.
+      const poi = boot?.pois.find((p) => p.id === poiId);
+      if (poi !== undefined) {
+        setPendingReward({ poiId, reward: poi.reward, won: result.won });
+      }
+    }
+
     void syncNow();
+  }
+
+  function handleClaimReward() {
+    if (pendingReward !== null) {
+      localState.markRewardGranted(pendingReward.poiId);
+      void syncNow();
+      setPendingReward(null);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -251,6 +297,28 @@ export function App() {
         <span className="hud-score">{totalScore}</span>
       </div>
 
+      {/* Corner action buttons — top-right, away from HUD (top-left), joystick (bottom-left), zoom (bottom-right) */}
+      <div className="corner-btns">
+        <button
+          type="button"
+          className="map-btn corner-btn"
+          aria-label="Инвентарь"
+          onClick={() => { setShowInventory(true); }}
+        >
+          🎒
+        </button>
+        {allCompleted && (
+          <button
+            type="button"
+            className="map-btn corner-btn"
+            aria-label="Таблица лидеров"
+            onClick={() => { setShowLeaderboard(true); }}
+          >
+            🏆
+          </button>
+        )}
+      </div>
+
       {map && (
         <PoiMarkers
           map={map}
@@ -261,6 +329,32 @@ export function App() {
           muted={state.prefs.muted}
           minigameTitles={minigameTitles}
           onResult={handleResult}
+        />
+      )}
+
+      {/* Reward popup — shown once per POI after first game finish */}
+      {pendingReward !== null && (
+        <RewardPopup
+          reward={pendingReward.reward}
+          won={pendingReward.won}
+          onClaim={handleClaimReward}
+        />
+      )}
+
+      {/* Inventory overlay */}
+      {showInventory && (
+        <InventoryScreen
+          pois={boot.pois}
+          state={state}
+          onClose={() => { setShowInventory(false); }}
+        />
+      )}
+
+      {/* Leaderboard overlay */}
+      {showLeaderboard && (
+        <LeaderboardScreen
+          userId={state.profile.userId}
+          onClose={() => { setShowLeaderboard(false); }}
         />
       )}
 
