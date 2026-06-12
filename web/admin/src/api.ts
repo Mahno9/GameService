@@ -47,6 +47,7 @@ export interface UpdatePoiBody {
   minigameId?: string;
   replayable?: boolean;
   blockerIds?: string[];
+  config?: Record<string, unknown>;
   rewardNameWin?: string;
   rewardNameLose?: string;
   rewardDescription?: string;
@@ -108,6 +109,26 @@ export interface UpdateLeaderboardEntryBody {
   score?: number;
 }
 
+export interface Minigame {
+  id: string;
+  title: string;
+  entryUrl: string;
+  schemaUrl: string;
+}
+
+export interface UploadedAsset {
+  id: string;
+  url: string;
+  kind: 'image' | 'audio' | 'gif';
+  originalName: string;
+  sizeBytes: number;
+}
+
+export interface PoiConfig {
+  minigameId: string;
+  config: Record<string, unknown>;
+}
+
 export interface RealUser {
   id: string;
   name: string;
@@ -130,6 +151,27 @@ export const api = {
     request<Settings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(patch) }),
   getTileJobs: () => request<TileJob[]>('/api/admin/tile-jobs'),
   getPois: () => request<Poi[]>('/api/pois'),
+  getMinigames: () => request<Minigame[]>('/api/minigames'),
+  getPoiConfig: (id: string) => request<PoiConfig>(`/api/pois/${id}/config`),
+  uploadAsset: async (file: File): Promise<UploadedAsset> => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/admin/assets', {
+      method: 'POST',
+      credentials: 'same-origin',
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new ApiError(res.status, (body as { error?: string }).error ?? res.statusText);
+    }
+    const data = (await res.json()) as { accepted: UploadedAsset[]; rejected: string[] };
+    const first = data.accepted[0];
+    if (!first) {
+      throw new ApiError(415, `Файл отклонён: ${data.rejected.join(', ') || 'неподдерживаемый формат'}`);
+    }
+    return first;
+  },
   createPoi: (body: CreatePoiBody) =>
     request<Poi>('/api/admin/pois', { method: 'POST', body: JSON.stringify(body) }),
   updatePoi: (id: string, body: UpdatePoiBody) =>

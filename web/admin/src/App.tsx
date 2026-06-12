@@ -3,14 +3,16 @@ import { api } from './api';
 import { LoginScreen } from './auth/LoginScreen';
 import { MapSection } from './sections/MapSection';
 import { PoiSection } from './sections/PoiSection';
+import { MinigamesSection } from './sections/MinigamesSection';
 import { DebugSection } from './sections/DebugSection';
 import { LeaderboardSection } from './sections/LeaderboardSection';
 
-type Section = 'map' | 'pois' | 'debug' | 'leaderboard';
+type Section = 'map' | 'pois' | 'minigames' | 'debug' | 'leaderboard';
 
 const SECTIONS: { id: Section; title: string }[] = [
   { id: 'map', title: 'Карта' },
   { id: 'pois', title: 'Точки интереса' },
+  { id: 'minigames', title: 'Мини-игры' },
   { id: 'debug', title: 'Дебаг' },
   { id: 'leaderboard', title: 'Лидерборд' },
 ];
@@ -54,6 +56,7 @@ export function App() {
       <main className="content">
         {section === 'map' && <MapSection />}
         {section === 'pois' && <PoiSection />}
+        {section === 'minigames' && <MinigamesSection />}
         {section === 'debug' && <DebugSection />}
         {section === 'leaderboard' && <LeaderboardSection />}
       </main>
