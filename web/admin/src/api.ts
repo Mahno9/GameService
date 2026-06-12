@@ -10,6 +10,48 @@ export interface Settings {
   map_bbox: Bbox | null;
 }
 
+export interface PoiReward {
+  imageAsset: string | null;
+  nameWin: string;
+  nameLose: string;
+  description: string;
+}
+
+export interface Poi {
+  id: string;
+  name: string;
+  lat: number;
+  lon: number;
+  minigameId: string;
+  replayable: boolean;
+  blockerIds: string[];
+  reward: PoiReward;
+}
+
+export interface CreatePoiBody {
+  name: string;
+  lat: number;
+  lon: number;
+  minigameId: string;
+  replayable?: boolean;
+  blockerIds?: string[];
+  rewardNameWin?: string;
+  rewardNameLose?: string;
+  rewardDescription?: string;
+}
+
+export interface UpdatePoiBody {
+  name?: string;
+  lat?: number;
+  lon?: number;
+  minigameId?: string;
+  replayable?: boolean;
+  blockerIds?: string[];
+  rewardNameWin?: string;
+  rewardNameLose?: string;
+  rewardDescription?: string;
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const merged: RequestInit = { credentials: 'same-origin', ...init };
   if (init?.body) {
@@ -58,4 +100,11 @@ export const api = {
   updateSettings: (patch: Partial<Settings>) =>
     request<Settings>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(patch) }),
   getTileJobs: () => request<TileJob[]>('/api/admin/tile-jobs'),
+  getPois: () => request<Poi[]>('/api/pois'),
+  createPoi: (body: CreatePoiBody) =>
+    request<Poi>('/api/admin/pois', { method: 'POST', body: JSON.stringify(body) }),
+  updatePoi: (id: string, body: UpdatePoiBody) =>
+    request<Poi>(`/api/admin/pois/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deletePoi: (id: string) =>
+    request<{ ok: true }>(`/api/admin/pois/${id}`, { method: 'DELETE' }),
 };

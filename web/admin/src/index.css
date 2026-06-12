@@ -298,3 +298,179 @@ input {
   margin-left: auto;
   color: #64748b;
 }
+
+/* POI markers */
+.poi-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.poi-marker-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.poi-marker--pending .poi-marker-dot {
+  background: #d97706;
+}
+
+.poi-marker-label {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.88);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+/* Inline add-POI form overlaid on the map */
+.poi-add-form-overlay {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.poi-add-form {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 260px;
+}
+
+.poi-add-form-row {
+  display: flex;
+}
+
+.poi-add-form-row input,
+.poi-add-form-row select {
+  flex: 1;
+}
+
+.poi-add-form-check label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.poi-add-form-actions {
+  gap: 8px;
+}
+
+/* Edit side panel */
+.poi-edit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.poi-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.poi-close-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.poi-field-label {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.poi-check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.poi-check-label input[type='checkbox'] {
+  padding: 0;
+  border: none;
+  width: auto;
+}
+
+.poi-select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  width: 100%;
+}
+
+.poi-blockers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.poi-blocker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.poi-blocker-row input[type='checkbox'] {
+  padding: 0;
+  border: none;
+  width: auto;
+}
+
+.poi-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+}
+
+.poi-delete-btn {
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.poi-delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.poi-radius-input {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  width: 80px;
+}

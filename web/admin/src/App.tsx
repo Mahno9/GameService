@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { LoginScreen } from './auth/LoginScreen';
 import { MapSection } from './sections/MapSection';
+import { PoiSection } from './sections/PoiSection';
 
-type Section = 'map';
+type Section = 'map' | 'pois';
 
-const SECTIONS: { id: Section; title: string }[] = [{ id: 'map', title: 'Карта' }];
+const SECTIONS: { id: Section; title: string }[] = [
+  { id: 'map', title: 'Карта' },
+  { id: 'pois', title: 'Точки интереса' },
+];
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -43,7 +47,10 @@ export function App() {
           Выйти
         </button>
       </nav>
-      <main className="content">{section === 'map' && <MapSection />}</main>
+      <main className="content">
+        {section === 'map' && <MapSection />}
+        {section === 'pois' && <PoiSection />}
+      </main>
     </div>
   );
 }
