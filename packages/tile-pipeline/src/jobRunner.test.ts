@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runVectorJob } from './jobRunner.js';
-import type { JobStage, ProgressInfo } from './jobRunner.js';
+import type { JobStage, ProgressInfo, ResumeInfo } from './jobRunner.js';
 import overpassSample from './fixtures/overpass-sample.json';
 
 const SAMPLE_BBOX: [number, number, number, number] = [37.614, 55.752, 37.62, 55.757];
@@ -206,5 +206,69 @@ describe('runVectorJob', () => {
     );
     const lastStatusPatch = statusPatches[statusPatches.length - 1];
     expect((lastStatusPatch?.body as { status: string }).status).toBe('paused');
+  });
+
+  it('resume: skips POST create, first PATCH is status running, zooms 14/15 not generated, final status done', async () => {
+    const resume: ResumeInfo = { jobId: 'j1', completedZooms: [14, 15] };
+    const mockFetch = makeMockFetch(calls);
+    const progresses: ProgressInfo[] = [];
+
+    await runVectorJob(
+      {
+        bbox: SAMPLE_BBOX,
+        minZoom: 14,
+        maxZoom: 16,
+        fetchImpl: mockFetch,
+        resume,
+      },
+      {
+        onStage: () => undefined,
+        onProgress: (p) => progresses.push(p),
+        onError: () => undefined,
+      },
+    );
+
+    // No POST to /api/admin/tile-jobs (no job creation)
+    const createCalls = calls.filter((c) => c.method === 'POST' && c.url === '/api/admin/tile-jobs');
+    expect(createCalls).toHaveLength(0);
+
+    // First PATCH must set status: 'running'
+    const allPatches = calls.filter((c) => c.method === 'PATCH' && c.url.startsWith('/api/admin/tile-jobs/'));
+    expect(allPatches.length).toBeGreaterThan(0);
+    const firstPatch = allPatches[0];
+    expect((firstPatch?.body as { status?: string }).status).toBe('running');
+
+    // No uploaded filenames for zoom 14 or 15
+    const batchCalls = calls.filter((c) => c.url === '/api/admin/tiles/batch');
+    const allFileNames = batchCalls.flatMap((c) => c.fileNames ?? []);
+    const zoom14or15 = allFileNames.filter((n) => /\/14\//.test(n) || /\/15\//.test(n));
+    expect(zoom14or15).toHaveLength(0);
+
+    // Final PATCH must be status: 'done'
+    const statusPatches = allPatches.filter(
+      (c) => typeof c.body === 'object' && c.body !== null && 'status' in (c.body as object),
+    );
+    const lastStatusPatch = statusPatches[statusPatches.length - 1];
+    expect((lastStatusPatch?.body as { status: string }).status).toBe('done');
+  });
+
+  it('ETA: onProgress eventually carries a finite numeric etaSeconds', async () => {
+    // Use 3 zoom levels so enough batches accumulate for ETA to appear.
+    const mockFetch = makeMockFetch(calls);
+    const progresses: ProgressInfo[] = [];
+
+    await runVectorJob(
+      { bbox: SAMPLE_BBOX, minZoom: 14, maxZoom: 16, fetchImpl: mockFetch },
+      {
+        onStage: () => undefined,
+        onProgress: (p) => progresses.push(p),
+        onError: () => undefined,
+      },
+    );
+
+    const withEta = progresses.filter(
+      (p) => typeof p.etaSeconds === 'number' && isFinite(p.etaSeconds),
+    );
+    expect(withEta.length).toBeGreaterThan(0);
   });
 });

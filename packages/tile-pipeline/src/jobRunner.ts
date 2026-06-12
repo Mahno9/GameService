@@ -5,6 +5,11 @@ import { tilesForBbox, countTiles, type Bbox, type TileCoord } from './tileMath.
 
 export type JobStage = 'download' | 'parse' | 'generate+upload';
 
+export interface ResumeInfo {
+  jobId: string;
+  completedZooms: number[];
+}
+
 export interface RunVectorJobOptions {
   bbox: Bbox;
   minZoom: number;
@@ -12,12 +17,16 @@ export interface RunVectorJobOptions {
   /** Override global fetch for testing. */
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
+  /** When present: resume an existing paused/failed job instead of creating a new one. */
+  resume?: ResumeInfo;
 }
 
 export interface ProgressInfo {
   tilesDone: number;
   tilesTotal: number;
   zoom: number;
+  /** Rolling estimated seconds remaining. Present after ≥2 batches have been uploaded. */
+  etaSeconds?: number;
 }
 
 export interface RunVectorJobCallbacks {
@@ -65,6 +74,28 @@ export interface RunRasterJobOptions {
   signal?: AbortSignal;
   /** Override the per-tile encoder. Default uses the Web Worker pool. */
   encodeTile?: EncodeTileFn;
+  /** When present: resume an existing paused/failed job instead of creating a new one. */
+  resume?: ResumeInfo;
+}
+
+/** Rolling ETA tracker: tiles uploaded since stage start / elapsed seconds. */
+function makeEtaTracker(tilesTotal: number) {
+  const stageStart = Date.now();
+  let batchCount = 0;
+  let tilesUploadedSinceStart = 0;
+
+  return function update(newlyUploaded: number): number | undefined {
+    tilesUploadedSinceStart += newlyUploaded;
+    batchCount += 1;
+    if (batchCount < 2) return undefined;
+    // Use at least 1ms to avoid division by zero in fast/mocked environments.
+    const elapsedMs = Math.max(1, Date.now() - stageStart);
+    if (tilesUploadedSinceStart <= 0) return undefined;
+    const ratePerMs = tilesUploadedSinceStart / elapsedMs;
+    const remaining = tilesTotal - tilesUploadedSinceStart;
+    if (remaining <= 0) return 0;
+    return Math.round(remaining / ratePerMs / 1000);
+  };
 }
 
 export async function runVectorJob(
@@ -75,10 +106,16 @@ export async function runVectorJob(
   const fetchFn = opts.fetchImpl ?? fetch;
   const { onStage, onProgress, onError } = callbacks;
 
-  const zooms = Array.from({ length: maxZoom - minZoom + 1 }, (_, i) => minZoom + i);
-  const tilesTotal = countTiles(bbox, zooms);
+  const allZooms = Array.from({ length: maxZoom - minZoom + 1 }, (_, i) => minZoom + i);
+  const tilesTotal = countTiles(bbox, allZooms);
 
-  let jobId: string | null = null;
+  // Resume support
+  const resumeCompletedZooms = opts.resume?.completedZooms ?? [];
+  const skippedTiles = resumeCompletedZooms.length > 0
+    ? countTiles(bbox, resumeCompletedZooms)
+    : 0;
+
+  let jobId: string | null = opts.resume?.jobId ?? null;
 
   async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetchFn(url, { credentials: 'same-origin', ...init });
@@ -115,13 +152,15 @@ export async function runVectorJob(
     if (signal?.aborted) throw signal.reason as Error;
     const layers = overpassToLayers(overpassJson);
 
-    // ── Create job ───────────────────────────────────────────────────────
-    const job = await apiFetch<JobDto>('/api/admin/tile-jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'vector', bbox, minZoom, maxZoom, tilesTotal }),
-    });
-    jobId = job.id;
+    // ── Create or resume job ─────────────────────────────────────────────
+    if (!opts.resume) {
+      const job = await apiFetch<JobDto>('/api/admin/tile-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'vector', bbox, minZoom, maxZoom, tilesTotal }),
+      });
+      jobId = job.id;
+    }
 
     await patchJob({ status: 'running' });
 
@@ -131,8 +170,13 @@ export async function runVectorJob(
     // Build geojson-vt indexes once for the full zoom range
     const indexes = buildIndexes(layers, maxZoom);
 
-    let tilesDone = 0;
-    const completedZooms: number[] = [];
+    let tilesDone = skippedTiles;
+    const completedZooms: number[] = [...resumeCompletedZooms];
+
+    const resumeSet = new Set(resumeCompletedZooms);
+    const zooms = allZooms.filter((z) => !resumeSet.has(z));
+
+    const updateEta = makeEtaTracker(tilesTotal - skippedTiles);
 
     for (const z of zooms) {
       if (signal?.aborted) throw signal.reason as Error;
@@ -148,9 +192,14 @@ export async function runVectorJob(
         }
         await apiFetch<unknown>('/api/admin/tiles/batch', { method: 'POST', body: form });
         tilesDone += batchFiles.length;
+        const etaSeconds = updateEta(batchFiles.length);
         batchFiles = [];
         await patchJob({ tilesDone });
-        onProgress({ tilesDone, tilesTotal, zoom: z });
+        const progressInfo: ProgressInfo = { tilesDone, tilesTotal, zoom: z };
+        if (etaSeconds !== undefined) {
+          progressInfo.etaSeconds = etaSeconds;
+        }
+        onProgress(progressInfo);
       }
 
       for (const coord of coords) {
@@ -212,10 +261,16 @@ export async function runRasterJob(
   const fetchFn = opts.fetchImpl ?? fetch;
   const { onStage, onProgress, onError } = callbacks;
 
-  const zooms = Array.from({ length: maxZoom - minZoom + 1 }, (_, i) => minZoom + i);
-  const tilesTotal = countTiles(bbox, zooms);
+  const allZooms = Array.from({ length: maxZoom - minZoom + 1 }, (_, i) => minZoom + i);
+  const tilesTotal = countTiles(bbox, allZooms);
 
-  let jobId: string | null = null;
+  // Resume support
+  const resumeCompletedZooms = opts.resume?.completedZooms ?? [];
+  const skippedTiles = resumeCompletedZooms.length > 0
+    ? countTiles(bbox, resumeCompletedZooms)
+    : 0;
+
+  let jobId: string | null = opts.resume?.jobId ?? null;
 
   async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetchFn(url, { credentials: 'same-origin', ...init });
@@ -254,21 +309,28 @@ export async function runRasterJob(
     if (signal?.aborted) throw signal.reason as Error;
     const layers = overpassToLayers(overpassJson);
 
-    // ── Create job ───────────────────────────────────────────────────────
-    const job = await apiFetch<JobDto>('/api/admin/tile-jobs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kind: 'raster', bbox, minZoom, maxZoom, tilesTotal }),
-    });
-    jobId = job.id;
+    // ── Create or resume job ─────────────────────────────────────────────
+    if (!opts.resume) {
+      const job = await apiFetch<JobDto>('/api/admin/tile-jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'raster', bbox, minZoom, maxZoom, tilesTotal }),
+      });
+      jobId = job.id;
+    }
 
     await patchJob({ status: 'running' });
 
     // ── Stage 3: Generate + upload ───────────────────────────────────────
     onStage('generate+upload');
 
-    let tilesDone = 0;
-    const completedZooms: number[] = [];
+    let tilesDone = skippedTiles;
+    const completedZooms: number[] = [...resumeCompletedZooms];
+
+    const resumeSet = new Set(resumeCompletedZooms);
+    const zooms = allZooms.filter((z) => !resumeSet.has(z));
+
+    const updateEta = makeEtaTracker(tilesTotal - skippedTiles);
 
     for (const z of zooms) {
       if (signal?.aborted) throw signal.reason as Error;
@@ -284,9 +346,14 @@ export async function runRasterJob(
         }
         await apiFetch<unknown>('/api/admin/tiles/batch', { method: 'POST', body: form });
         tilesDone += batchFiles.length;
+        const etaSeconds = updateEta(batchFiles.length);
         batchFiles = [];
         await patchJob({ tilesDone });
-        onProgress({ tilesDone, tilesTotal, zoom: z });
+        const progressInfo: ProgressInfo = { tilesDone, tilesTotal, zoom: z };
+        if (etaSeconds !== undefined) {
+          progressInfo.etaSeconds = etaSeconds;
+        }
+        onProgress(progressInfo);
       }
 
       const collect = async (encoded: EncodedTile | null): Promise<void> => {

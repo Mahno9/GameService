@@ -13,6 +13,7 @@ export type {
   ProgressInfo,
   JobStage,
   JobDto,
+  ResumeInfo,
 } from './jobRunner.js';
 export { renderTileToCanvas, RASTER_COLORS } from './raster/renderTile.js';
 export type { Canvas2DLike } from './raster/renderTile.js';

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { runVectorJob, runRasterJob } from '@gameservice/tile-pipeline';
-import type { JobStage, ProgressInfo } from '@gameservice/tile-pipeline';
+import type { JobStage, ProgressInfo, ResumeInfo } from '@gameservice/tile-pipeline';
 import { api, type Bbox, type TileJob } from '../api';
 
 interface Props {
@@ -16,7 +16,7 @@ const STAGE_LABELS: Record<JobStage, string> = {
 type RunStatus = 'idle' | 'running' | 'done' | 'error' | 'cancelled';
 
 type JobRunner = (
-  args: { bbox: Bbox; minZoom: number; maxZoom: number; signal: AbortSignal },
+  args: { bbox: Bbox; minZoom: number; maxZoom: number; signal: AbortSignal; resume?: ResumeInfo },
   callbacks: {
     onStage: (s: JobStage) => void;
     onProgress: (p: ProgressInfo) => void;
@@ -30,7 +30,7 @@ interface RunState {
   progress: ProgressInfo | null;
   errorMsg: string | null;
   isRunning: boolean;
-  start: (bbox: Bbox, minZoom: number, maxZoom: number) => Promise<void>;
+  start: (bbox: Bbox, minZoom: number, maxZoom: number, resume?: ResumeInfo) => Promise<void>;
   cancel: () => void;
 }
 
@@ -42,7 +42,7 @@ function useTileJobRun(runner: JobRunner, onSettled: () => void): RunState {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  async function start(bbox: Bbox, minZoom: number, maxZoom: number) {
+  async function start(bbox: Bbox, minZoom: number, maxZoom: number, resume?: ResumeInfo) {
     setStatus('running');
     setStage(null);
     setProgress(null);
@@ -50,14 +50,20 @@ function useTileJobRun(runner: JobRunner, onSettled: () => void): RunState {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      await runner(
-        { bbox, minZoom, maxZoom, signal: controller.signal },
-        {
-          onStage: (s) => setStage(s),
-          onProgress: (p) => setProgress(p),
-          onError: (err) => setErrorMsg(err.message),
-        },
-      );
+      const args: { bbox: Bbox; minZoom: number; maxZoom: number; signal: AbortSignal; resume?: ResumeInfo } = {
+        bbox,
+        minZoom,
+        maxZoom,
+        signal: controller.signal,
+      };
+      if (resume !== undefined) {
+        args.resume = resume;
+      }
+      await runner(args, {
+        onStage: (s) => setStage(s),
+        onProgress: (p) => setProgress(p),
+        onError: (err) => setErrorMsg(err.message),
+      });
       setStatus('done');
     } catch (err) {
       if (controller.signal.aborted) {
@@ -85,6 +91,13 @@ function useTileJobRun(runner: JobRunner, onSettled: () => void): RunState {
     start,
     cancel,
   };
+}
+
+function formatEta(etaSeconds: number): string {
+  if (etaSeconds < 60) {
+    return `осталось ~${etaSeconds} сек`;
+  }
+  return `осталось ~${Math.round(etaSeconds / 60)} мин`;
 }
 
 export function TileGenerationPanel({ savedBbox }: Props) {
@@ -126,6 +139,9 @@ export function TileGenerationPanel({ savedBbox }: Props) {
                 <div className="tile-progress-text">
                   {run.progress.tilesDone} / {run.progress.tilesTotal} тайлов · зум{' '}
                   {run.progress.zoom}
+                  {run.progress.etaSeconds !== undefined && (
+                    <span className="tile-eta"> · {formatEta(run.progress.etaSeconds)}</span>
+                  )}
                 </div>
               </>
             )}
@@ -138,6 +154,25 @@ export function TileGenerationPanel({ savedBbox }: Props) {
         {run.status === 'cancelled' && <div className="tile-status-warn">Прервано</div>}
       </>
     );
+  }
+
+  function handleResume(job: TileJob) {
+    const bbox = job.bbox;
+    const resume: ResumeInfo = { jobId: job.id, completedZooms: job.completedZooms };
+    if (job.kind === 'vector') {
+      void vector.start(bbox, job.minZoom, job.maxZoom, resume);
+    } else {
+      void raster.start(bbox, job.minZoom, job.maxZoom, resume);
+    }
+  }
+
+  function handleRegenerate(job: TileJob) {
+    const bbox = job.bbox;
+    if (job.kind === 'vector') {
+      void vector.start(bbox, job.minZoom, job.maxZoom);
+    } else {
+      void raster.start(bbox, job.minZoom, job.maxZoom);
+    }
   }
 
   return (
@@ -252,6 +287,24 @@ export function TileGenerationPanel({ savedBbox }: Props) {
               <span className="tile-job-progress">
                 {job.tilesDone}/{job.tilesTotal}
               </span>
+              {(job.status === 'paused' || job.status === 'failed') && (
+                <button
+                  className="tile-job-action-btn"
+                  disabled={anyRunning}
+                  onClick={() => handleResume(job)}
+                >
+                  Продолжить
+                </button>
+              )}
+              {job.status === 'done' && (
+                <button
+                  className="tile-job-action-btn"
+                  disabled={anyRunning}
+                  onClick={() => handleRegenerate(job)}
+                >
+                  Перегенерировать
+                </button>
+              )}
             </div>
           ))}
         </div>

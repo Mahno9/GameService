@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runRasterJob } from './jobRunner.js';
-import type { JobStage } from './jobRunner.js';
+import type { JobStage, ProgressInfo, ResumeInfo } from './jobRunner.js';
 import overpassSample from './fixtures/overpass-sample.json';
 
 const SAMPLE_BBOX: [number, number, number, number] = [37.614, 55.752, 37.62, 55.757];
@@ -129,5 +129,82 @@ describe('runRasterJob', () => {
     );
     const lastStatusPatch = statusPatches[statusPatches.length - 1];
     expect((lastStatusPatch?.body as { status: string }).status).toBe('done');
+  });
+
+  it('resume: skips POST create, first PATCH is status running, zooms 11 not generated, final status done', async () => {
+    const resume: ResumeInfo = { jobId: 'r1', completedZooms: [11] };
+    const mockFetch = makeMockFetch(calls);
+    const fakeWebp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x57, 0x45]);
+
+    await runRasterJob(
+      {
+        bbox: SAMPLE_BBOX,
+        minZoom: 11,
+        maxZoom: 12,
+        fetchImpl: mockFetch,
+        resume,
+        encodeTile: async (_layers, coord) => ({
+          name: `raster/${coord.z}/${coord.x}/${coord.y}.webp`,
+          data: fakeWebp,
+        }),
+      },
+      {
+        onStage: () => undefined,
+        onProgress: () => undefined,
+        onError: () => undefined,
+      },
+    );
+
+    // No POST to /api/admin/tile-jobs
+    const createCalls = calls.filter((c) => c.method === 'POST' && c.url === '/api/admin/tile-jobs');
+    expect(createCalls).toHaveLength(0);
+
+    // First PATCH must set status: 'running'
+    const allPatches = calls.filter((c) => c.method === 'PATCH' && c.url.startsWith('/api/admin/tile-jobs/'));
+    expect(allPatches.length).toBeGreaterThan(0);
+    const firstPatch = allPatches[0];
+    expect((firstPatch?.body as { status?: string }).status).toBe('running');
+
+    // No uploaded filenames for zoom 11
+    const batchCalls = calls.filter((c) => c.url === '/api/admin/tiles/batch');
+    const allFileNames = batchCalls.flatMap((c) => c.fileNames ?? []);
+    const zoom11 = allFileNames.filter((n) => /\/11\//.test(n));
+    expect(zoom11).toHaveLength(0);
+
+    // Final PATCH status: 'done'
+    const statusPatches = allPatches.filter(
+      (c) => typeof c.body === 'object' && c.body !== null && 'status' in (c.body as object),
+    );
+    const lastStatusPatch = statusPatches[statusPatches.length - 1];
+    expect((lastStatusPatch?.body as { status: string }).status).toBe('done');
+  });
+
+  it('ETA: onProgress eventually carries a finite numeric etaSeconds', async () => {
+    const mockFetch = makeMockFetch(calls);
+    const fakeWebp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x57, 0x45]);
+    const progresses: ProgressInfo[] = [];
+
+    await runRasterJob(
+      {
+        bbox: SAMPLE_BBOX,
+        minZoom: 11,
+        maxZoom: 13,
+        fetchImpl: mockFetch,
+        encodeTile: async (_layers, coord) => ({
+          name: `raster/${coord.z}/${coord.x}/${coord.y}.webp`,
+          data: fakeWebp,
+        }),
+      },
+      {
+        onStage: () => undefined,
+        onProgress: (p) => progresses.push(p),
+        onError: () => undefined,
+      },
+    );
+
+    const withEta = progresses.filter(
+      (p) => typeof p.etaSeconds === 'number' && isFinite(p.etaSeconds),
+    );
+    expect(withEta.length).toBeGreaterThan(0);
   });
 });
