@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Прыгалка",
+  "description": "Бесконечный раннер — персонаж прыгает через препятствия",
+  "type": "object",
+  "properties": {
+    "lives": {
+      "type": "integer",
+      "title": "Количество жизней",
+      "default": 3,
+      "minimum": 1
+    },
+    "speedCurve": {
+      "type": "array",
+      "title": "Кривая скорости",
+      "x-type": "curve",
+      "items": {
+        "type": "object",
+        "properties": {
+          "distance": { "type": "number" },
+          "speed": { "type": "number" }
+        },
+        "required": ["distance", "speed"]
+      },
+      "default": [
+        { "distance": 0, "speed": 6 },
+        { "distance": 500, "speed": 10 },
+        { "distance": 2000, "speed": 16 }
+      ]
+    },
+    "characterAsset": {
+      "type": "string",
+      "title": "Персонаж",
+      "x-type": "asset:gif"
+    },
+    "backgroundLayers": {
+      "type": "array",
+      "title": "Фоновые слои (parallax)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "Изображение слоя",
+            "x-type": "asset:image"
+          },
+          "scrollSpeed": {
+            "type": "number",
+            "title": "Скорость прокрутки (0–1)",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": ["image", "scrollSpeed"]
+      }
+    },
+    "obstacleTypes": {
+      "type": "array",
+      "title": "Типы препятствий",
+      "items": {
+        "type": "object",
+        "properties": {
+          "width": { "type": "number", "title": "Ширина (px)" },
+          "height": { "type": "number", "title": "Высота (px)" },
+          "weight": { "type": "number", "title": "Вес (частота появления)" },
+          "image": {
+            "type": "string",
+            "title": "Ассет по умолчанию",
+            "x-type": "asset:gif"
+          },
+          "overcomeImage": {
+            "type": "string",
+            "title": "Ассет при преодолении",
+            "x-type": "asset:gif"
+          },
+          "overcomeSound": {
+            "type": "string",
+            "title": "Звук преодоления",
+            "x-type": "asset:audio"
+          }
+        },
+        "required": ["width", "height", "weight"]
+      }
+    },
+    "sounds": {
+      "type": "object",
+      "title": "Звуки",
+      "properties": {
+        "jump": { "type": "string", "title": "Прыжок", "x-type": "asset:audio" },
+        "land": { "type": "string", "title": "Приземление", "x-type": "asset:audio" },
+        "hit": { "type": "string", "title": "Потеря жизни", "x-type": "asset:audio" },
+        "gameOver": { "type": "string", "title": "Игра окончена", "x-type": "asset:audio" }
+      }
+    },
+    "music": {
+      "type": "string",
+      "title": "Фоновая музыка",
+      "x-type": "asset:audio"
+    }
+  },
+  "required": ["lives", "speedCurve", "obstacleTypes"]
+}
