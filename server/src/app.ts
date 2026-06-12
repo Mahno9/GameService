@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import { config } from './config.js';
 import { registerAuth } from './plugins/auth.js';
 import { registerStatic } from './plugins/static.js';
+import { overpassRoutes } from './routes/overpass.js';
 import { settingsRoutes } from './routes/settings.js';
 
 export async function buildApp() {
@@ -13,6 +14,7 @@ export async function buildApp() {
 
   await registerAuth(app);
   await app.register(settingsRoutes);
+  await app.register(overpassRoutes);
   await registerStatic(app);
 
   return app;
