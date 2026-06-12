@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Пятнашки",
+  "description": "Классические пятнашки из изображения, несколько раундов.",
+  "type": "object",
+  "required": ["gridSize", "rounds"],
+  "properties": {
+    "gridSize": {
+      "type": "integer",
+      "title": "Размер сетки",
+      "default": 4,
+      "minimum": 2,
+      "maximum": 6
+    },
+    "rounds": {
+      "type": "array",
+      "title": "Раунды",
+      "items": {
+        "type": "object",
+        "required": ["image", "shuffleMoves", "scoreThresholds"],
+        "properties": {
+          "image": {
+            "type": "string",
+            "title": "Изображение",
+            "x-type": "asset:image"
+          },
+          "shuffleMoves": {
+            "type": "integer",
+            "title": "Сложность перемешивания",
+            "default": 80,
+            "minimum": 1
+          },
+          "scoreThresholds": {
+            "type": "array",
+            "title": "Пороги баллов",
+            "items": {
+              "type": "object",
+              "required": ["maxSeconds", "points"],
+              "properties": {
+                "maxSeconds": {
+                  "type": "integer",
+                  "title": "Макс. секунд"
+                },
+                "points": {
+                  "type": "integer",
+                  "title": "Баллы"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sounds": {
+      "type": "object",
+      "title": "Звуки",
+      "properties": {
+        "tileMove": {
+          "type": "string",
+          "title": "Ход плитки",
+          "x-type": "asset:audio"
+        },
+        "roundWin": {
+          "type": "string",
+          "title": "Победа в раунде",
+          "x-type": "asset:audio"
+        },
+        "gameWin": {
+          "type": "string",
+          "title": "Общая победа",
+          "x-type": "asset:audio"
+        }
+      }
+    }
+  }
+}
