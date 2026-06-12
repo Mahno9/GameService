@@ -88,6 +88,35 @@ export interface TileJob {
   updatedAt: string;
 }
 
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  avatarEmoji: string;
+  score: number;
+  sortHint: number;
+}
+
+export interface CreateLeaderboardEntryBody {
+  name: string;
+  avatarEmoji: string;
+  score: number;
+}
+
+export interface UpdateLeaderboardEntryBody {
+  name?: string;
+  avatarEmoji?: string;
+  score?: number;
+}
+
+export interface RealUser {
+  id: string;
+  name: string;
+  avatarEmoji: string;
+  totalScore: number;
+  isDebug: boolean;
+  completedAll: boolean;
+}
+
 export const api = {
   login: (login: string, password: string) =>
     request<{ ok: true }>('/api/admin/login', {
@@ -107,4 +136,20 @@ export const api = {
     request<Poi>(`/api/admin/pois/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deletePoi: (id: string) =>
     request<{ ok: true }>(`/api/admin/pois/${id}`, { method: 'DELETE' }),
+  getLeaderboard: () => request<LeaderboardEntry[]>('/api/admin/leaderboard'),
+  createLeaderboardEntry: (body: CreateLeaderboardEntryBody) =>
+    request<LeaderboardEntry>('/api/admin/leaderboard', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateLeaderboardEntry: (id: string, body: UpdateLeaderboardEntryBody) =>
+    request<LeaderboardEntry>(`/api/admin/leaderboard/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  deleteLeaderboardEntry: (id: string) =>
+    request<{ ok: true }>(`/api/admin/leaderboard/${id}`, { method: 'DELETE' }),
+  getRealUsers: () => request<RealUser[]>('/api/admin/leaderboard/real'),
+  deleteRealUser: (userId: string) =>
+    request<{ ok: true }>(`/api/admin/leaderboard/real/${userId}`, { method: 'DELETE' }),
 };

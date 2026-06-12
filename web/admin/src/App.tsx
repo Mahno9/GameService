@@ -3,12 +3,16 @@ import { api } from './api';
 import { LoginScreen } from './auth/LoginScreen';
 import { MapSection } from './sections/MapSection';
 import { PoiSection } from './sections/PoiSection';
+import { DebugSection } from './sections/DebugSection';
+import { LeaderboardSection } from './sections/LeaderboardSection';
 
-type Section = 'map' | 'pois';
+type Section = 'map' | 'pois' | 'debug' | 'leaderboard';
 
 const SECTIONS: { id: Section; title: string }[] = [
   { id: 'map', title: 'Карта' },
   { id: 'pois', title: 'Точки интереса' },
+  { id: 'debug', title: 'Дебаг' },
+  { id: 'leaderboard', title: 'Лидерборд' },
 ];
 
 export function App() {
@@ -50,6 +54,8 @@ export function App() {
       <main className="content">
         {section === 'map' && <MapSection />}
         {section === 'pois' && <PoiSection />}
+        {section === 'debug' && <DebugSection />}
+        {section === 'leaderboard' && <LeaderboardSection />}
       </main>
     </div>
   );
