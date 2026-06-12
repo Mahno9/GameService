@@ -1,6 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, type Minigame, type Poi } from '../api';
 import { SchemaForm, type Schema } from '../schema-form/SchemaForm';
+import { FindObjectEditor } from '../scene-editor/FindObjectEditor';
+
+// Properties of the find-object schema that are managed by the visual
+// FindObjectEditor instead of the generic SchemaForm.
+const FIND_OBJECT_EDITOR_KEYS = ['backgroundImage', 'overlays', 'targets'] as const;
+
+/** Strip the editor-managed properties so SchemaForm only renders the rest. */
+function schemaWithoutEditorKeys(schema: Schema): Schema {
+  if (!schema.properties) return schema;
+  const properties: Record<string, Schema> = {};
+  for (const [key, sub] of Object.entries(schema.properties)) {
+    if ((FIND_OBJECT_EDITOR_KEYS as readonly string[]).includes(key)) continue;
+    properties[key] = sub;
+  }
+  const required = schema.required?.filter(
+    (k) => !(FIND_OBJECT_EDITOR_KEYS as readonly string[]).includes(k),
+  );
+  return required ? { ...schema, properties, required } : { ...schema, properties };
+}
 
 // ---------------------------------------------------------------------------
 // Minigame module contract (see minigame_contract.md)
@@ -119,6 +138,14 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [testRun, setTestRun] = useState(false);
 
+  const isFindObject = minigame?.id === 'find-object';
+  // For find-object, the visual editor owns backgroundImage/overlays/targets;
+  // SchemaForm renders the remaining fields (scoreThresholds, sounds, …).
+  const formSchema = useMemo(
+    () => (schema && isFindObject ? schemaWithoutEditorKeys(schema) : schema),
+    [schema, isFindObject],
+  );
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -162,7 +189,10 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
 
   return (
     <div className='modal-overlay' onClick={onClose}>
-      <div className='modal-card' onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`modal-card${isFindObject ? ' modal-card--wide' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className='modal-header'>
           <span className='modal-title'>{poi.name}</span>
           <button className='modal-close' title='Закрыть' onClick={onClose}>
@@ -176,7 +206,9 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
 
           {!loading && schema && (
             <>
-              <SchemaForm schema={schema} value={config} onChange={setConfig} />
+              {isFindObject && <FindObjectEditor value={config} onChange={setConfig} />}
+
+              {formSchema && <SchemaForm schema={formSchema} value={config} onChange={setConfig} />}
 
               <label className='sf-field sf-field-check modal-replayable'>
                 <input

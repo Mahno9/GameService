@@ -1522,3 +1522,348 @@ input {
   background: #10b981;
 }
 
+/* =========================================================================
+   Find-object scene editor
+   ========================================================================= */
+.modal-card--wide {
+  width: 1100px;
+}
+
+.foe {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.foe-bg-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.foe-bar-spacer {
+  flex: 1;
+}
+
+.foe-bg-url {
+  font-family: monospace;
+  font-size: 12px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.foe-error {
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.foe-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  padding: 7px 12px;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  background: #fff;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.foe-upload-btn:hover {
+  background: #eff6ff;
+}
+
+.foe-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+}
+
+.foe-preview-toggle input[type='checkbox'] {
+  padding: 0;
+  border: none;
+  width: auto;
+}
+
+.foe-main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.foe-stage-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.foe-stage {
+  position: relative;
+  max-height: 70vh;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f1f5f9;
+  line-height: 0;
+}
+
+.foe-stage-bg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  object-fit: contain;
+  user-select: none;
+}
+
+.foe-stage-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 240px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.foe-item {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.foe-item-img {
+  position: absolute;
+  transform-origin: center center;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.foe-item-placeholder {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  border-radius: 6px;
+  color: #94a3b8;
+}
+
+.foe-item--selected .foe-item-img,
+.foe-item--selected .foe-item-placeholder {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.foe-item-badge {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.foe-item-dot {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 1px solid #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Floating selected-item toolbar */
+.foe-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.foe-toolbar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.foe-tb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.foe-tb-row > span:first-child {
+  width: 54px;
+  flex-shrink: 0;
+}
+
+.foe-tb-row input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+}
+
+.foe-tb-row select,
+.foe-tb-row .foe-tb-filter-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.foe-tb-val {
+  width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.foe-tb-buttons button {
+  padding: 2px 10px;
+  font-size: 13px;
+}
+
+.foe-tb-remove {
+  align-self: stretch;
+  margin-top: 4px;
+  border-color: #fca5a5;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 6px;
+}
+
+.foe-tb-remove:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+/* Palette */
+.foe-palette {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.foe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.foe-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.foe-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.foe-list-item {
+  position: relative;
+  padding: 2px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.foe-list-item--selected {
+  border-color: #2563eb;
+  outline: 1px solid #2563eb;
+}
+
+.foe-list-thumb {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.foe-list-thumb--empty {
+  color: #94a3b8;
+  font-size: 18px;
+}
+
+.foe-list-num {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 0 0 6px 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.foe-list-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.foe-list-add {
+  align-self: flex-start;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
