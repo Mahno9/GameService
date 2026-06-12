@@ -10,7 +10,7 @@ for (const dir of [config.dataDir, paths.tiles(), paths.assets(), paths.osmCache
 
 const ran = migrate(getDb());
 
-const app = buildApp();
+const app = await buildApp();
 if (ran.length > 0) app.log.info({ migrations: ran }, 'applied migrations');
 
 app.listen({ host: config.host, port: config.port }).catch((err) => {
