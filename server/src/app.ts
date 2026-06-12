@@ -6,6 +6,7 @@ import fastifyMultipart from '@fastify/multipart';
 import { overpassRoutes } from './routes/overpass.js';
 import { settingsRoutes } from './routes/settings.js';
 import { tilesRoutes } from './routes/tiles.js';
+import { mapStyleRoutes } from './routes/mapStyle.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -22,6 +23,7 @@ export async function buildApp() {
   await app.register(settingsRoutes);
   await app.register(overpassRoutes);
   await app.register(tilesRoutes);
+  await app.register(mapStyleRoutes);
   await registerStatic(app);
 
   return app;
