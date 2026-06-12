@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type LeaderboardRow } from '../api';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 
 interface LeaderboardScreenProps {
   userId: string;
@@ -14,6 +15,7 @@ type LoadState =
 
 /** Full-screen overlay showing the ranked leaderboard. */
 export function LeaderboardScreen({ userId, onClose }: LeaderboardScreenProps) {
+  const t = useI18n();
   const [load, setLoad] = useState<LoadState>({ status: 'loading' });
 
   useEffect(() => {
@@ -25,26 +27,26 @@ export function LeaderboardScreen({ userId, onClose }: LeaderboardScreenProps) {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Ошибка загрузки';
+          const message = err instanceof Error ? err.message : t('leaderboard.errorFallback');
           setLoad({ status: 'error', message });
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="overlay-screen">
       <div className="overlay-header">
-        <span className="overlay-title">Таблица лидеров</span>
-        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label="Закрыть">
+        <span className="overlay-title">{t('leaderboard.title')}</span>
+        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label={t('leaderboard.close')}>
           ✕
         </button>
       </div>
 
       {load.status === 'loading' && (
-        <div className="overlay-loading">Загрузка…</div>
+        <div className="overlay-loading">{t('leaderboard.loading')}</div>
       )}
 
       {load.status === 'error' && (

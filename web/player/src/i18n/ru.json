@@ -1,0 +1,60 @@
+{
+  "map.unconfigured": "Карта не настроена. Сгенерируйте тайлы в AdminPanel.",
+  "map.error": "Ошибка",
+  "map.center": "Центрировать",
+  "map.zoomIn": "Приблизить",
+  "map.zoomOut": "Отдалить",
+
+  "app.loading": "Загрузка…",
+  "app.loadError": "Ошибка загрузки",
+
+  "reg.title": "Добро пожаловать",
+  "reg.subtitle": "Введите имя и выберите аватар",
+  "reg.namePlaceholder": "Ваше имя",
+  "reg.avatarLabel": "Аватар {emoji}",
+  "reg.start": "Начать",
+  "reg.loading": "Загрузка…",
+  "reg.errorFallback": "Не удалось начать",
+
+  "poi.locked": "Заблокирована",
+  "poi.available": "Доступна",
+  "poi.completed": "Пройдена",
+  "poi.startQuestion": "Начать?",
+  "poi.start": "Начать",
+  "poi.cancel": "Отмена",
+  "poi.close": "Закрыть",
+  "poi.status": "Статус: {status}",
+
+  "reward.win": "Награда",
+  "reward.lose": "Утешительный приз",
+  "reward.claim": "Забрать",
+
+  "inventory.title": "Инвентарь",
+  "inventory.empty": "Пока пусто. Проходите игры!",
+  "inventory.close": "Закрыть",
+
+  "leaderboard.title": "Таблица лидеров",
+  "leaderboard.loading": "Загрузка…",
+  "leaderboard.errorFallback": "Ошибка загрузки",
+  "leaderboard.close": "Закрыть",
+
+  "toast.gpsLost": "GPS не определяется. Включить виртуальный джойстик?",
+  "toast.enableJoystick": "Включить",
+  "toast.dismiss": "Скрыть",
+
+  "hud.startGame": "Начать игру",
+
+  "hud.muteOn": "Включить звук",
+  "hud.muteOff": "Выключить звук",
+  "hud.inventory": "Инвентарь",
+  "hud.leaderboard": "Таблица лидеров",
+  "hud.settings": "Настройки",
+
+  "settings.title": "Настройки",
+  "settings.lang.ru": "RU",
+  "settings.lang.en": "EN",
+
+  "debug.exitTitle": "Дебаг-режим выключен. Удалить результаты тестовой сессии?",
+  "debug.delete": "Удалить",
+  "debug.keep": "Оставить"
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { localState, type ClientState } from '../state/localState';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 
 const AVATARS = [
   '😀', '😎', '🤩', '🥳', '😇', '🤓', '😺', '🤠',
@@ -20,6 +21,7 @@ function isAdoptableState(value: unknown): value is ClientState {
 }
 
 export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
+  const t = useI18n();
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0] as string);
   const [submitting, setSubmitting] = useState(false);
@@ -44,10 +46,11 @@ export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
         userId: res.user.id,
         name: res.user.name,
         avatarEmoji: res.user.avatarEmoji,
+        isDebug: res.user.isDebug,
       });
       onDone();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не удалось начать');
+      setError(err instanceof Error ? err.message : t('reg.errorFallback'));
       setSubmitting(false);
     }
   }
@@ -55,13 +58,13 @@ export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
   return (
     <div className="reg-screen">
       <div className="reg-card">
-        <h1 className="reg-title">Добро пожаловать</h1>
-        <p className="reg-subtitle">Введите имя и выберите аватар</p>
+        <h1 className="reg-title">{t('reg.title')}</h1>
+        <p className="reg-subtitle">{t('reg.subtitle')}</p>
 
         <input
           className="reg-input"
           type="text"
-          placeholder="Ваше имя"
+          placeholder={t('reg.namePlaceholder')}
           value={name}
           maxLength={30}
           onChange={(e) => setName(e.target.value)}
@@ -77,7 +80,7 @@ export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
                 emoji === avatar ? 'reg-avatar reg-avatar-selected' : 'reg-avatar'
               }
               onClick={() => setAvatar(emoji)}
-              aria-label={`Аватар ${emoji}`}
+              aria-label={t('reg.avatarLabel', { emoji })}
             >
               {emoji}
             </button>
@@ -92,7 +95,7 @@ export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
           disabled={!valid || submitting}
           onClick={() => void handleStart()}
         >
-          {submitting ? 'Загрузка…' : 'Начать'}
+          {submitting ? t('reg.loading') : t('reg.start')}
         </button>
       </div>
     </div>

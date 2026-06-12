@@ -5,6 +5,7 @@ import type { ClientState } from '../state/localState';
 import type { PlayerPosition } from './positionProvider';
 import { launchMinigame, type MinigameResult } from '../game/minigameLoader';
 import { playClick } from '../audio/uiSound';
+import { t, useI18n } from '../i18n/index';
 
 interface PoiMarkersProps {
   map: maplibregl.Map;
@@ -46,14 +47,16 @@ function statusOf(state: ClientState, poi: Poi): PoiStatus {
   return 'available';
 }
 
+/** Returns the localised status label. Uses the module-level `t` so the
+ *  marker DOM elements can be updated from the non-React update path too. */
 function statusLabel(status: PoiStatus): string {
   switch (status) {
     case 'locked':
-      return 'Заблокирована';
+      return t('poi.locked');
     case 'completed':
-      return 'Пройдена';
+      return t('poi.completed');
     case 'available':
-      return 'Доступна';
+      return t('poi.available');
   }
 }
 
@@ -89,6 +92,7 @@ export function PoiMarkers({
   minigameTitles,
   onResult,
 }: PoiMarkersProps) {
+  const tFn = useI18n();
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [running, setRunning] = useState(false);
@@ -136,7 +140,7 @@ export function PoiMarkers({
         markers.delete(id);
       }
     }
-  }, [map, pois]);
+  }, [map, pois]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update marker visual state classes on state / position changes.
   useEffect(() => {
@@ -206,21 +210,21 @@ export function PoiMarkers({
         {inRadius ? (
           <>
             <div className="bottom-sheet-game">{title}</div>
-            <div className="bottom-sheet-question">Начать?</div>
+            <div className="bottom-sheet-question">{tFn('poi.startQuestion')}</div>
             <div className="bottom-sheet-actions">
               <button
                 type="button"
                 className="sheet-btn sheet-btn-primary"
                 onClick={() => startGame(poi)}
               >
-                Начать
+                {tFn('poi.start')}
               </button>
               <button
                 type="button"
                 className="sheet-btn"
                 onClick={() => { playClick(); setSheet(null); }}
               >
-                Отмена
+                {tFn('poi.cancel')}
               </button>
             </div>
           </>
@@ -228,7 +232,7 @@ export function PoiMarkers({
           <>
             <div className="bottom-sheet-game">{title}</div>
             <div className="bottom-sheet-status">
-              Статус: {statusLabel(status)}
+              {tFn('poi.status', { status: statusLabel(status) })}
             </div>
             <div className="bottom-sheet-actions">
               <button
@@ -236,7 +240,7 @@ export function PoiMarkers({
                 className="sheet-btn"
                 onClick={() => { playClick(); setSheet(null); }}
               >
-                Закрыть
+                {tFn('poi.close')}
               </button>
             </div>
           </>

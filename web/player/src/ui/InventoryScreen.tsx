@@ -1,6 +1,7 @@
 import type { Poi } from '../api';
 import type { ClientState } from '../state/localState';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 
 interface InventoryScreenProps {
   pois: Poi[];
@@ -10,6 +11,8 @@ interface InventoryScreenProps {
 
 /** Full-screen overlay listing all granted reward items. */
 export function InventoryScreen({ pois, state, onClose }: InventoryScreenProps) {
+  const t = useI18n();
+
   // Collect items for which rewardGranted is true.
   const items = pois.filter((poi) => {
     const result = state.poiResults[poi.id];
@@ -19,14 +22,14 @@ export function InventoryScreen({ pois, state, onClose }: InventoryScreenProps) 
   return (
     <div className="overlay-screen">
       <div className="overlay-header">
-        <span className="overlay-title">Инвентарь</span>
-        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label="Закрыть">
+        <span className="overlay-title">{t('inventory.title')}</span>
+        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label={t('inventory.close')}>
           ✕
         </button>
       </div>
 
       {items.length === 0 ? (
-        <div className="inventory-empty">Пока пусто. Проходите игры!</div>
+        <div className="inventory-empty">{t('inventory.empty')}</div>
       ) : (
         <div className="inventory-list">
           {items.map((poi) => {

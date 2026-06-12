@@ -1,5 +1,6 @@
 import type { PoiReward } from '../api';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 
 interface RewardPopupProps {
   reward: PoiReward;
@@ -9,9 +10,11 @@ interface RewardPopupProps {
 
 /** Shown once after a game finishes (rewardGranted was false). */
 export function RewardPopup({ reward, won, onClaim }: RewardPopupProps) {
+  const t = useI18n();
+
   // Title: nameWin on victory, nameLose on defeat (fall back to nameWin if empty).
   const itemName = (won ? reward.nameWin : reward.nameLose || reward.nameWin) || '—';
-  const heading = won ? 'Награда' : 'Утешительный приз';
+  const heading = won ? t('reward.win') : t('reward.lose');
 
   // Show image only when imageAsset looks like a URL/path.
   const imgSrc =
@@ -31,7 +34,7 @@ export function RewardPopup({ reward, won, onClaim }: RewardPopupProps) {
           <div className="reward-description">{reward.description}</div>
         )}
         <button type="button" className="reward-claim-btn" onClick={() => { playClick(); onClaim(); }}>
-          Забрать
+          {t('reward.claim')}
         </button>
       </div>
     </div>

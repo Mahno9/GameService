@@ -18,8 +18,10 @@ import { Toast } from './ui/Toast';
 import { RewardPopup } from './ui/RewardPopup';
 import { InventoryScreen } from './ui/InventoryScreen';
 import { LeaderboardScreen } from './ui/LeaderboardScreen';
+import { SettingsPopover } from './ui/SettingsPopover';
 import type { MinigameResult } from './game/minigameLoader';
 import { initUiSound, playClick, setUiMuted } from './audio/uiSound';
+import { useI18n } from './i18n/index';
 
 function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
   return { lat: (s + n) / 2, lon: (w + e) / 2 };
@@ -56,6 +58,7 @@ interface PendingReward {
 // ---------------------------------------------------------------------------
 
 export function App() {
+  const t = useI18n();
   const state = useSyncExternalStore(localState.subscribe, localState.getSnapshot);
 
   // Raw loaded data from the server.
@@ -81,6 +84,11 @@ export function App() {
   // Overlay screens.
   const [showInventory, setShowInventory] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Debug-exit notification: shown once per app load.
+  const [showDebugExitToast, setShowDebugExitToast] = useState(false);
+  const debugExitCheckedRef = useRef(false);
 
   const providerRef = useRef<PositionProvider | null>(null);
 
@@ -119,12 +127,26 @@ export function App() {
         });
       } catch (err) {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : 'Ошибка загрузки');
+        setLoadError(err instanceof Error ? err.message : t('app.loadError'));
       }
     }
     void load();
     return () => { cancelled = true; };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // -------------------------------------------------------------------------
+  // Debug-exit notification: once per load, after boot + profile are ready.
+  // Condition: user.isDebug === true AND settings.debug_mode === false.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!boot || !hasProfile || debugExitCheckedRef.current) return;
+    debugExitCheckedRef.current = true;
+    const isDebugUser = state.profile.isDebug === true;
+    const debugModeOff = !boot.settings.debug_mode;
+    if (isDebugUser && debugModeOff) {
+      setShowDebugExitToast(true);
+    }
+  }, [boot, hasProfile, state.profile.isDebug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -------------------------------------------------------------------------
   // Provider initialisation: runs once when boot data arrives.
@@ -280,13 +302,28 @@ export function App() {
   }
 
   // -------------------------------------------------------------------------
+  // Debug-exit: delete session then reload.
+  // -------------------------------------------------------------------------
+  async function handleDeleteDebugSession() {
+    const userId = state.profile.userId;
+    if (!userId) return;
+    try {
+      await api.deleteSession(userId);
+    } catch {
+      // Ignore errors — clear local state and reload regardless.
+    }
+    localStorage.clear();
+    location.reload();
+  }
+
+  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
   if (loadError && !boot) {
     return <div className="map-message">{loadError}</div>;
   }
   if (!boot || !provider) {
-    return <div className="map-message">Загрузка…</div>;
+    return <div className="map-message">{t('app.loading')}</div>;
   }
   if (!hasProfile) {
     return <RegistrationScreen onDone={() => undefined} />;
@@ -309,7 +346,7 @@ export function App() {
         <button
           type="button"
           className="map-btn corner-btn"
-          aria-label="Инвентарь"
+          aria-label={t('hud.inventory')}
           onClick={() => { playClick(); setShowInventory(true); }}
         >
           🎒
@@ -318,7 +355,7 @@ export function App() {
           <button
             type="button"
             className="map-btn corner-btn"
-            aria-label="Таблица лидеров"
+            aria-label={t('hud.leaderboard')}
             onClick={() => { playClick(); setShowLeaderboard(true); }}
           >
             🏆
@@ -327,7 +364,7 @@ export function App() {
         <button
           type="button"
           className="map-btn corner-btn"
-          aria-label={state.prefs.muted ? 'Включить звук' : 'Выключить звук'}
+          aria-label={state.prefs.muted ? t('hud.muteOn') : t('hud.muteOff')}
           onClick={() => {
             const next = !state.prefs.muted;
             localState.setMuted(next);
@@ -338,7 +375,23 @@ export function App() {
         >
           {state.prefs.muted ? '🔇' : '🔊'}
         </button>
+        <button
+          type="button"
+          className="map-btn corner-btn"
+          aria-label={t('hud.settings')}
+          onClick={() => { playClick(); setShowSettings((v) => !v); }}
+        >
+          ⚙️
+        </button>
       </div>
+
+      {/* Settings popover */}
+      {showSettings && (
+        <SettingsPopover
+          currentLang={state.prefs.lang}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {map && (
         <PoiMarkers
@@ -382,15 +435,36 @@ export function App() {
       {/* GPS-loss toast */}
       {showGpsToast && (
         <Toast
-          message="GPS не определяется. Включить виртуальный джойстик?"
+          message={t('toast.gpsLost')}
           onDismiss={() => { setShowGpsToast(false); }}
           actions={[
             {
-              label: 'Включить',
+              label: t('toast.enableJoystick'),
               onClick: () => {
                 setShowGpsToast(false);
                 switchToJoystick(boot);
               },
+            },
+          ]}
+        />
+      )}
+
+      {/* Debug-exit notification */}
+      {showDebugExitToast && (
+        <Toast
+          message={t('debug.exitTitle')}
+          onDismiss={() => { setShowDebugExitToast(false); }}
+          actions={[
+            {
+              label: t('debug.delete'),
+              onClick: () => {
+                setShowDebugExitToast(false);
+                void handleDeleteDebugSession();
+              },
+            },
+            {
+              label: t('debug.keep'),
+              onClick: () => { setShowDebugExitToast(false); },
             },
           ]}
         />
@@ -404,7 +478,7 @@ export function App() {
             type="button"
             onClick={() => { void handleStartGesture(); }}
           >
-            Начать игру
+            {t('hud.startGame')}
           </button>
         </div>
       )}

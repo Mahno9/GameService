@@ -1,0 +1,60 @@
+{
+  "map.unconfigured": "Map not configured. Generate tiles in AdminPanel.",
+  "map.error": "Error",
+  "map.center": "Center",
+  "map.zoomIn": "Zoom in",
+  "map.zoomOut": "Zoom out",
+
+  "app.loading": "Loading…",
+  "app.loadError": "Load error",
+
+  "reg.title": "Welcome",
+  "reg.subtitle": "Enter your name and choose an avatar",
+  "reg.namePlaceholder": "Your name",
+  "reg.avatarLabel": "Avatar {emoji}",
+  "reg.start": "Start",
+  "reg.loading": "Loading…",
+  "reg.errorFallback": "Failed to start",
+
+  "poi.locked": "Locked",
+  "poi.available": "Available",
+  "poi.completed": "Completed",
+  "poi.startQuestion": "Start?",
+  "poi.start": "Start",
+  "poi.cancel": "Cancel",
+  "poi.close": "Close",
+  "poi.status": "Status: {status}",
+
+  "reward.win": "Reward",
+  "reward.lose": "Consolation prize",
+  "reward.claim": "Claim",
+
+  "inventory.title": "Inventory",
+  "inventory.empty": "Nothing yet. Complete games to earn items!",
+  "inventory.close": "Close",
+
+  "leaderboard.title": "Leaderboard",
+  "leaderboard.loading": "Loading…",
+  "leaderboard.errorFallback": "Load error",
+  "leaderboard.close": "Close",
+
+  "toast.gpsLost": "GPS unavailable. Enable virtual joystick?",
+  "toast.enableJoystick": "Enable",
+  "toast.dismiss": "Dismiss",
+
+  "hud.startGame": "Start game",
+
+  "hud.muteOn": "Unmute",
+  "hud.muteOff": "Mute",
+  "hud.inventory": "Inventory",
+  "hud.leaderboard": "Leaderboard",
+  "hud.settings": "Settings",
+
+  "settings.title": "Settings",
+  "settings.lang.ru": "RU",
+  "settings.lang.en": "EN",
+
+  "debug.exitTitle": "Debug mode disabled. Delete test session results?",
+  "debug.delete": "Delete",
+  "debug.keep": "Keep"
+}

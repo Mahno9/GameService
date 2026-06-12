@@ -122,4 +122,8 @@ export const api = {
     }),
   getLeaderboard: (userId: string) =>
     request<LeaderboardRow[]>(`/api/leaderboard?userId=${encodeURIComponent(userId)}`),
+  deleteSession: (userId: string) =>
+    request<{ ok: true }>(`/api/session/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    }),
 };

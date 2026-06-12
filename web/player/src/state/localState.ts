@@ -1,3 +1,5 @@
+import { setLang as i18nSetLang, type Lang } from '../i18n/index';
+
 export interface PoiResult {
   bestScore: number;
   won: boolean;
@@ -9,7 +11,7 @@ export interface PoiResult {
 export interface ClientState {
   version: 1;
   updatedAt: number;
-  profile: { userId: string; name: string; avatarEmoji: string };
+  profile: { userId: string; name: string; avatarEmoji: string; isDebug?: boolean };
   poiResults: Record<string, PoiResult>;
   prefs: { lang: string; muted: boolean };
 }
@@ -53,6 +55,12 @@ class LocalStateStore {
 
   constructor() {
     this.state = this.read();
+    // Apply persisted language to the i18n module immediately on construction
+    // (before any React render) so the first render is already in the right language.
+    const lang = this.state.prefs.lang;
+    if (lang === 'ru' || lang === 'en') {
+      i18nSetLang(lang);
+    }
   }
 
   private read(): ClientState {
@@ -158,7 +166,7 @@ class LocalStateStore {
     });
   }
 
-  setProfile(profile: { userId: string; name: string; avatarEmoji: string }): void {
+  setProfile(profile: { userId: string; name: string; avatarEmoji: string; isDebug?: boolean }): void {
     this.commit({
       ...this.state,
       updatedAt: Date.now(),
@@ -172,6 +180,17 @@ class LocalStateStore {
       ...this.state,
       updatedAt: Date.now(),
       prefs: { ...this.state.prefs, muted },
+    });
+  }
+
+  setLang(lang: Lang): void {
+    if (this.state.prefs.lang === lang) return;
+    // Update i18n module first so the re-render that follows sees the new language.
+    i18nSetLang(lang);
+    this.commit({
+      ...this.state,
+      updatedAt: Date.now(),
+      prefs: { ...this.state.prefs, lang },
     });
   }
 }

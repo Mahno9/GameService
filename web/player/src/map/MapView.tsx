@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { api, ApiError, type Bbox } from '../api';
 import type { PlayerPosition, PositionProvider } from './positionProvider';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 import './map.css';
 
 interface MapViewProps {
@@ -45,6 +46,7 @@ function createMarkerElement(): HTMLDivElement {
 }
 
 export function MapView({ provider, onMapReady }: MapViewProps) {
+  const t = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -69,7 +71,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
         if (err instanceof ApiError && err.status === 409) {
           setState({ kind: 'unconfigured' });
         } else {
-          setState({ kind: 'error', message: err instanceof Error ? err.message : 'Ошибка' });
+          setState({ kind: 'error', message: err instanceof Error ? err.message : t('map.error') });
         }
         return;
       }
@@ -140,7 +142,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [provider, onMapReady]);
+  }, [provider, onMapReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function recenter() {
     playClick();
@@ -157,7 +159,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
   if (state.kind === 'unconfigured') {
     return (
       <div className="map-message">
-        Карта не настроена. Сгенерируйте тайлы в AdminPanel.
+        {t('map.unconfigured')}
       </div>
     );
   }
@@ -172,7 +174,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
         <>
           {!followMode && (
             <button className="map-btn map-btn-recenter" onClick={recenter} type="button">
-              Центрировать
+              {t('map.center')}
             </button>
           )}
           <div className="map-zoom-controls">
@@ -180,7 +182,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
               className="map-btn"
               onClick={() => { playClick(); mapRef.current?.zoomIn(); }}
               type="button"
-              aria-label="Приблизить"
+              aria-label={t('map.zoomIn')}
             >
               +
             </button>
@@ -188,7 +190,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
               className="map-btn"
               onClick={() => { playClick(); mapRef.current?.zoomOut(); }}
               type="button"
-              aria-label="Отдалить"
+              aria-label={t('map.zoomOut')}
             >
               −
             </button>

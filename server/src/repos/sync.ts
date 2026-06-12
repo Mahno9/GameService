@@ -200,6 +200,18 @@ export function upsertGameState(
   ).run(userId, JSON.stringify(payload), clientUpdatedAt, now);
 }
 
+/**
+ * Delete a debug user row (and all game_states via FK cascade).
+ * Returns true when deleted, false when the user was not found or is not debug.
+ */
+export function deleteDebugUser(db: Database, userId: string): 'deleted' | 'not_found' | 'not_debug' {
+  const user = findUserById(db, userId);
+  if (!user) return 'not_found';
+  if (user.is_debug === 0) return 'not_debug';
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  return 'deleted';
+}
+
 export function updateUserStats(db: Database, userId: string, payload: ClientStatePayload): void {
   const now = Date.now();
 

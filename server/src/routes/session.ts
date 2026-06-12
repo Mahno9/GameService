@@ -9,6 +9,7 @@ import {
   upsertGameState,
   updateUserStats,
   resolveSync,
+  deleteDebugUser,
   type UserRow,
   type ClientStatePayload,
 } from '../repos/sync.js';
@@ -137,6 +138,16 @@ export async function sessionRoutes(app: FastifyInstance) {
       };
     },
   );
+
+  // DELETE /api/session/:userId — delete a debug user and all their data.
+  // Public endpoint; returns 403 when the user is not a debug user (safety guard).
+  app.delete<{ Params: { userId: string } }>('/api/session/:userId', async (req, reply) => {
+    const db = getDb();
+    const result = deleteDebugUser(db, req.params.userId);
+    if (result === 'not_found') return reply.code(404).send({ error: 'user not found' });
+    if (result === 'not_debug') return reply.code(403).send({ error: 'not a debug user' });
+    return { ok: true };
+  });
 
   // GET /api/state/:userId — get current stored state
   app.get<{ Params: { userId: string } }>('/api/state/:userId', async (req, reply) => {

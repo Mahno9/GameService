@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { playClick } from '../audio/uiSound';
+import { useI18n } from '../i18n/index';
 
 export interface ToastAction {
   label: string;
@@ -20,6 +21,7 @@ interface ToastProps {
  * Mount/unmount it to show/hide — no internal open/close state.
  */
 export function Toast({ message, autoDismissMs, actions, onDismiss }: ToastProps) {
+  const t = useI18n();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function Toast({ message, autoDismissMs, actions, onDismiss }: ToastProps
             </button>
           ))}
           <button className="toast-btn toast-btn-dismiss" type="button" onClick={() => { playClick(); onDismiss(); }}>
-            Скрыть
+            {t('toast.dismiss')}
           </button>
         </div>
       )}
