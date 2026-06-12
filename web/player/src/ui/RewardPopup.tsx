@@ -1,4 +1,5 @@
 import type { PoiReward } from '../api';
+import { playClick } from '../audio/uiSound';
 
 interface RewardPopupProps {
   reward: PoiReward;
@@ -29,7 +30,7 @@ export function RewardPopup({ reward, won, onClaim }: RewardPopupProps) {
         {reward.description.length > 0 && (
           <div className="reward-description">{reward.description}</div>
         )}
-        <button type="button" className="reward-claim-btn" onClick={onClaim}>
+        <button type="button" className="reward-claim-btn" onClick={() => { playClick(); onClaim(); }}>
           Забрать
         </button>
       </div>

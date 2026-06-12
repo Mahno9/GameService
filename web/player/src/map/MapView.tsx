@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { api, ApiError, type Bbox } from '../api';
 import type { PlayerPosition, PositionProvider } from './positionProvider';
+import { playClick } from '../audio/uiSound';
 import './map.css';
 
 interface MapViewProps {
@@ -142,6 +143,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
   }, [provider, onMapReady]);
 
   function recenter() {
+    playClick();
     followRef.current = true;
     setFollowMode(true);
     const m = markerRef.current;
@@ -176,7 +178,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
           <div className="map-zoom-controls">
             <button
               className="map-btn"
-              onClick={() => mapRef.current?.zoomIn()}
+              onClick={() => { playClick(); mapRef.current?.zoomIn(); }}
               type="button"
               aria-label="Приблизить"
             >
@@ -184,7 +186,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
             </button>
             <button
               className="map-btn"
-              onClick={() => mapRef.current?.zoomOut()}
+              onClick={() => { playClick(); mapRef.current?.zoomOut(); }}
               type="button"
               aria-label="Отдалить"
             >

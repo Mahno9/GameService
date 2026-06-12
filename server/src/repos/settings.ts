@@ -8,6 +8,7 @@ export const SETTING_KEYS = [
   'joystick_speed_mps',
   'zoom_threshold',
   'map_bbox',
+  'ui_click_sound_url',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];

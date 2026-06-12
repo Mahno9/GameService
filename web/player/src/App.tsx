@@ -19,6 +19,7 @@ import { RewardPopup } from './ui/RewardPopup';
 import { InventoryScreen } from './ui/InventoryScreen';
 import { LeaderboardScreen } from './ui/LeaderboardScreen';
 import type { MinigameResult } from './game/minigameLoader';
+import { initUiSound, playClick, setUiMuted } from './audio/uiSound';
 
 function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
   return { lat: (s + n) / 2, lon: (w + e) / 2 };
@@ -34,6 +35,7 @@ interface LoadedSettings {
   gps_timeout_min: number;
   trigger_radius_m: number;
   sync_interval_s: number;
+  ui_click_sound_url: string | null;
 }
 
 interface BootData {
@@ -98,6 +100,10 @@ export function App() {
           api.getMinigames().catch(() => [] as Minigame[]),
         ]);
         if (cancelled) return;
+        // Initialise UI sound from server config and sync muted state.
+        initUiSound(settings.ui_click_sound_url ?? null);
+        setUiMuted(localState.getSnapshot().prefs.muted);
+
         setBoot({
           settings: {
             debug_mode: settings.debug_mode,
@@ -105,6 +111,7 @@ export function App() {
             gps_timeout_min: settings.gps_timeout_min,
             trigger_radius_m: settings.trigger_radius_m,
             sync_interval_s: settings.sync_interval_s,
+            ui_click_sound_url: settings.ui_click_sound_url ?? null,
           },
           bboxCenter: bboxCenter(meta.bbox),
           pois,
@@ -303,7 +310,7 @@ export function App() {
           type="button"
           className="map-btn corner-btn"
           aria-label="Инвентарь"
-          onClick={() => { setShowInventory(true); }}
+          onClick={() => { playClick(); setShowInventory(true); }}
         >
           🎒
         </button>
@@ -312,11 +319,25 @@ export function App() {
             type="button"
             className="map-btn corner-btn"
             aria-label="Таблица лидеров"
-            onClick={() => { setShowLeaderboard(true); }}
+            onClick={() => { playClick(); setShowLeaderboard(true); }}
           >
             🏆
           </button>
         )}
+        <button
+          type="button"
+          className="map-btn corner-btn"
+          aria-label={state.prefs.muted ? 'Включить звук' : 'Выключить звук'}
+          onClick={() => {
+            const next = !state.prefs.muted;
+            localState.setMuted(next);
+            setUiMuted(next);
+            // Play a click only when unmuting so the user hears confirmation.
+            if (!next) playClick();
+          }}
+        >
+          {state.prefs.muted ? '🔇' : '🔊'}
+        </button>
       </div>
 
       {map && (

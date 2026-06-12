@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { localState, type ClientState } from '../state/localState';
+import { playClick } from '../audio/uiSound';
 
 const AVATARS = [
   '😀', '😎', '🤩', '🥳', '😇', '🤓', '😺', '🤠',
@@ -29,6 +30,7 @@ export function RegistrationScreen({ onDone }: RegistrationScreenProps) {
 
   async function handleStart() {
     if (!valid || submitting) return;
+    playClick();
     setSubmitting(true);
     setError(null);
     try {

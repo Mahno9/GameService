@@ -1,5 +1,6 @@
 import type { Poi } from '../api';
 import type { ClientState } from '../state/localState';
+import { playClick } from '../audio/uiSound';
 
 interface InventoryScreenProps {
   pois: Poi[];
@@ -19,7 +20,7 @@ export function InventoryScreen({ pois, state, onClose }: InventoryScreenProps) 
     <div className="overlay-screen">
       <div className="overlay-header">
         <span className="overlay-title">Инвентарь</span>
-        <button type="button" className="overlay-close-btn" onClick={onClose} aria-label="Закрыть">
+        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label="Закрыть">
           ✕
         </button>
       </div>

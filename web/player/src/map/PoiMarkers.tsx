@@ -4,6 +4,7 @@ import type { Poi } from '../api';
 import type { ClientState } from '../state/localState';
 import type { PlayerPosition } from './positionProvider';
 import { launchMinigame, type MinigameResult } from '../game/minigameLoader';
+import { playClick } from '../audio/uiSound';
 
 interface PoiMarkersProps {
   map: maplibregl.Map;
@@ -97,6 +98,7 @@ export function PoiMarkers({
   latest.current = { pois, state, player, triggerRadiusM };
 
   function openSheetFor(poiId: string): void {
+    playClick();
     const cur = latest.current;
     const poi = cur.pois.find((p) => p.id === poiId);
     if (!poi) return;
@@ -179,6 +181,7 @@ export function PoiMarkers({
   }, []);
 
   function startGame(poi: Poi): void {
+    playClick();
     setSheet(null);
     setRunning(true);
     void launchMinigame({
@@ -197,7 +200,7 @@ export function PoiMarkers({
   const title = minigameTitles[poi.minigameId] ?? poi.name;
 
   return (
-    <div className="bottom-sheet-backdrop" onClick={() => setSheet(null)}>
+    <div className="bottom-sheet-backdrop" onClick={() => { playClick(); setSheet(null); }}>
       <div className="bottom-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="bottom-sheet-title">{poi.name}</div>
         {inRadius ? (
@@ -215,7 +218,7 @@ export function PoiMarkers({
               <button
                 type="button"
                 className="sheet-btn"
-                onClick={() => setSheet(null)}
+                onClick={() => { playClick(); setSheet(null); }}
               >
                 Отмена
               </button>
@@ -231,7 +234,7 @@ export function PoiMarkers({
               <button
                 type="button"
                 className="sheet-btn"
-                onClick={() => setSheet(null)}
+                onClick={() => { playClick(); setSheet(null); }}
               >
                 Закрыть
               </button>

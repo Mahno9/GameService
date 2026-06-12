@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type LeaderboardRow } from '../api';
+import { playClick } from '../audio/uiSound';
 
 interface LeaderboardScreenProps {
   userId: string;
@@ -37,7 +38,7 @@ export function LeaderboardScreen({ userId, onClose }: LeaderboardScreenProps) {
     <div className="overlay-screen">
       <div className="overlay-header">
         <span className="overlay-title">Таблица лидеров</span>
-        <button type="button" className="overlay-close-btn" onClick={onClose} aria-label="Закрыть">
+        <button type="button" className="overlay-close-btn" onClick={() => { playClick(); onClose(); }} aria-label="Закрыть">
           ✕
         </button>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { playClick } from '../audio/uiSound';
 
 export interface ToastAction {
   label: string;
@@ -39,12 +40,12 @@ export function Toast({ message, autoDismissMs, actions, onDismiss }: ToastProps
               key={a.label}
               className="toast-btn"
               type="button"
-              onClick={() => { a.onClick(); onDismiss(); }}
+              onClick={() => { playClick(); a.onClick(); onDismiss(); }}
             >
               {a.label}
             </button>
           ))}
-          <button className="toast-btn toast-btn-dismiss" type="button" onClick={onDismiss}>
+          <button className="toast-btn toast-btn-dismiss" type="button" onClick={() => { playClick(); onDismiss(); }}>
             Скрыть
           </button>
         </div>
