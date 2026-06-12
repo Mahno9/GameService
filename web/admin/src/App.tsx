@@ -6,8 +6,10 @@ import { PoiSection } from './sections/PoiSection';
 import { MinigamesSection } from './sections/MinigamesSection';
 import { DebugSection } from './sections/DebugSection';
 import { LeaderboardSection } from './sections/LeaderboardSection';
+import { AssetsSection } from './sections/AssetsSection';
+import { PreviewSection } from './sections/PreviewSection';
 
-type Section = 'map' | 'pois' | 'minigames' | 'debug' | 'leaderboard';
+type Section = 'map' | 'pois' | 'minigames' | 'debug' | 'leaderboard' | 'assets' | 'preview';
 
 const SECTIONS: { id: Section; title: string }[] = [
   { id: 'map', title: 'Карта' },
@@ -15,6 +17,8 @@ const SECTIONS: { id: Section; title: string }[] = [
   { id: 'minigames', title: 'Мини-игры' },
   { id: 'debug', title: 'Дебаг' },
   { id: 'leaderboard', title: 'Лидерборд' },
+  { id: 'assets', title: 'Ассеты' },
+  { id: 'preview', title: 'Предпросмотр' },
 ];
 
 export function App() {
@@ -59,6 +63,8 @@ export function App() {
         {section === 'minigames' && <MinigamesSection />}
         {section === 'debug' && <DebugSection />}
         {section === 'leaderboard' && <LeaderboardSection />}
+        {section === 'assets' && <AssetsSection />}
+        {section === 'preview' && <PreviewSection />}
       </main>
     </div>
   );

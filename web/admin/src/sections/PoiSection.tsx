@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { api, type Bbox, type Poi, type Settings } from '../api';
+import { api, type Poi, type Settings } from '../api';
+import { bboxToPolygon, circlePolygon } from '../lib/geo';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,34 +36,6 @@ const MINIGAMES: MinigameOption[] = [
 // ---------------------------------------------------------------------------
 // Geo helpers
 // ---------------------------------------------------------------------------
-
-function bboxToPolygon([w, s, e, n]: Bbox): GeoJSON.Feature {
-  return {
-    type: 'Feature',
-    properties: {},
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]],
-    },
-  };
-}
-
-/** Approximate circle as a GeoJSON polygon (32 points). */
-function circlePolygon(lat: number, lon: number, radiusM: number): GeoJSON.Feature {
-  const points = 32;
-  const dLat = radiusM / 111320;
-  const dLon = radiusM / (111320 * Math.cos((lat * Math.PI) / 180));
-  const coords: [number, number][] = [];
-  for (let i = 0; i <= points; i++) {
-    const angle = (2 * Math.PI * i) / points;
-    coords.push([lon + dLon * Math.cos(angle), lat + dLat * Math.sin(angle)]);
-  }
-  return {
-    type: 'Feature',
-    properties: {},
-    geometry: { type: 'Polygon', coordinates: [coords] },
-  };
-}
 
 function poisToCircles(pois: Poi[], radiusM: number): GeoJSON.FeatureCollection {
   return {
@@ -136,7 +109,7 @@ function AddPoiForm({ onSubmit, onCancel }: AddFormProps) {
 interface EditPanelProps {
   poi: Poi;
   allPois: Poi[];
-  onSave: (patch: Partial<Poi> & { rewardNameWin?: string; rewardNameLose?: string; rewardDescription?: string }) => void;
+  onSave: (patch: Partial<Poi> & { rewardImageAsset?: string | null; rewardNameWin?: string; rewardNameLose?: string; rewardDescription?: string }) => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -146,9 +119,12 @@ function EditPoiPanel({ poi, allPois, onSave, onDelete, onClose }: EditPanelProp
   const [minigameId, setMinigameId] = useState(poi.minigameId);
   const [replayable, setReplayable] = useState(poi.replayable);
   const [blockerIds, setBlockerIds] = useState<string[]>(poi.blockerIds);
+  const [rewardImageAsset, setRewardImageAsset] = useState<string | null>(poi.reward.imageAsset);
   const [rewardNameWin, setRewardNameWin] = useState(poi.reward.nameWin);
   const [rewardNameLose, setRewardNameLose] = useState(poi.reward.nameLose);
   const [rewardDescription, setRewardDescription] = useState(poi.reward.description);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Keep fields in sync if a different POI is selected
   useEffect(() => {
@@ -156,10 +132,25 @@ function EditPoiPanel({ poi, allPois, onSave, onDelete, onClose }: EditPanelProp
     setMinigameId(poi.minigameId);
     setReplayable(poi.replayable);
     setBlockerIds(poi.blockerIds);
+    setRewardImageAsset(poi.reward.imageAsset);
     setRewardNameWin(poi.reward.nameWin);
     setRewardNameLose(poi.reward.nameLose);
     setRewardDescription(poi.reward.description);
+    setImageError(null);
   }, [poi]);
+
+  async function handleImageUpload(file: File) {
+    setImageUploading(true);
+    setImageError(null);
+    try {
+      const asset = await api.uploadAsset(file);
+      setRewardImageAsset(asset.url);
+    } catch (e) {
+      setImageError(e instanceof Error ? e.message : 'Ошибка загрузки');
+    } finally {
+      setImageUploading(false);
+    }
+  }
 
   function toggleBlocker(id: string) {
     setBlockerIds((prev) =>
@@ -168,7 +159,7 @@ function EditPoiPanel({ poi, allPois, onSave, onDelete, onClose }: EditPanelProp
   }
 
   function handleSave() {
-    onSave({ name, minigameId, replayable, blockerIds, rewardNameWin, rewardNameLose, rewardDescription });
+    onSave({ name, minigameId, replayable, blockerIds, rewardImageAsset, rewardNameWin, rewardNameLose, rewardDescription });
   }
 
   function handleDelete() {
@@ -230,6 +221,42 @@ function EditPoiPanel({ poi, allPois, onSave, onDelete, onClose }: EditPanelProp
           </div>
         </>
       )}
+
+      <label className='poi-field-label'>Изображение награды</label>
+      <div className='poi-reward-image-block'>
+        {rewardImageAsset && (
+          <img
+            src={rewardImageAsset}
+            alt='Изображение награды'
+            className='poi-reward-thumb'
+          />
+        )}
+        <div className='poi-reward-image-row'>
+          <label className='poi-upload-btn'>
+            {imageUploading ? 'Загрузка…' : 'Загрузить изображение'}
+            <input
+              type='file'
+              accept='image/*'
+              style={{ display: 'none' }}
+              disabled={imageUploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleImageUpload(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {rewardImageAsset && (
+            <button
+              className='poi-reward-clear-btn'
+              onClick={() => setRewardImageAsset(null)}
+            >
+              Убрать
+            </button>
+          )}
+        </div>
+        {imageError && <span className='poi-upload-error'>{imageError}</span>}
+      </div>
 
       <label className='poi-field-label'>Награда — название при победе</label>
       <input value={rewardNameWin} onChange={(e) => setRewardNameWin(e.target.value)} />
@@ -522,7 +549,7 @@ export function PoiSection() {
 
   async function handleSave(
     id: string,
-    patch: { name?: string; minigameId?: string; replayable?: boolean; blockerIds?: string[]; rewardNameWin?: string; rewardNameLose?: string; rewardDescription?: string },
+    patch: { name?: string; minigameId?: string; replayable?: boolean; blockerIds?: string[]; rewardImageAsset?: string | null; rewardNameWin?: string; rewardNameLose?: string; rewardDescription?: string },
   ) {
     try {
       const updated = await api.updatePoi(id, patch);

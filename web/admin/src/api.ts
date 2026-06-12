@@ -8,6 +8,15 @@ export interface Settings {
   joystick_speed_mps: number;
   zoom_threshold: number;
   map_bbox: Bbox | null;
+  ui_click_sound_url: string | null;
+}
+
+export interface Asset {
+  id: string;
+  url: string;
+  kind: 'image' | 'audio' | 'gif';
+  originalName: string;
+  sizeBytes: number;
 }
 
 export interface PoiReward {
@@ -48,6 +57,7 @@ export interface UpdatePoiBody {
   replayable?: boolean;
   blockerIds?: string[];
   config?: Record<string, unknown>;
+  rewardImageAsset?: string | null;
   rewardNameWin?: string;
   rewardNameLose?: string;
   rewardDescription?: string;
@@ -116,13 +126,8 @@ export interface Minigame {
   schemaUrl: string;
 }
 
-export interface UploadedAsset {
-  id: string;
-  url: string;
-  kind: 'image' | 'audio' | 'gif';
-  originalName: string;
-  sizeBytes: number;
-}
+/** @deprecated Use Asset instead */
+export type UploadedAsset = Asset;
 
 export interface PoiConfig {
   minigameId: string;
@@ -153,7 +158,10 @@ export const api = {
   getPois: () => request<Poi[]>('/api/pois'),
   getMinigames: () => request<Minigame[]>('/api/minigames'),
   getPoiConfig: (id: string) => request<PoiConfig>(`/api/pois/${id}/config`),
-  uploadAsset: async (file: File): Promise<UploadedAsset> => {
+  getAssets: () => request<Asset[]>('/api/admin/assets'),
+  deleteAsset: (id: string) =>
+    request<{ ok: true }>(`/api/admin/assets/${id}`, { method: 'DELETE' }),
+  uploadAsset: async (file: File): Promise<Asset> => {
     const form = new FormData();
     form.append('file', file);
     const res = await fetch('/api/admin/assets', {
@@ -165,7 +173,7 @@ export const api = {
       const body = await res.json().catch(() => ({ error: res.statusText }));
       throw new ApiError(res.status, (body as { error?: string }).error ?? res.statusText);
     }
-    const data = (await res.json()) as { accepted: UploadedAsset[]; rejected: string[] };
+    const data = (await res.json()) as { accepted: Asset[]; rejected: string[] };
     const first = data.accepted[0];
     if (!first) {
       throw new ApiError(415, `Файл отклонён: ${data.rejected.join(', ') || 'неподдерживаемый формат'}`);
