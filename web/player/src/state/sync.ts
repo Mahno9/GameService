@@ -1,6 +1,72 @@
 import { api, type ServerState } from '../api';
 import { localState, type ClientState } from './localState';
 
+// ---------------------------------------------------------------------------
+// Connectivity store
+// ---------------------------------------------------------------------------
+
+/** Subscribers notified when the connectivity boolean changes. */
+const connectivityListeners = new Set<() => void>();
+
+/**
+ * True when we believe we have a working server connection.
+ * Initialised from navigator.onLine; refined by sync outcomes.
+ */
+let _isConnected: boolean =
+  typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+function emitConnectivity(): void {
+  for (const l of connectivityListeners) l();
+}
+
+/**
+ * Called by syncNow after each attempt.
+ * ok=true  → server responded   → mark connected
+ * ok=false → request failed     → mark disconnected
+ */
+export function notifySyncResult(ok: boolean): void {
+  if (ok === _isConnected) return;
+  _isConnected = ok;
+  emitConnectivity();
+}
+
+/** Subscribe to connectivity changes (useSyncExternalStore-compatible). */
+export function subscribeConnectivity(listener: () => void): () => void {
+  connectivityListeners.add(listener);
+  return () => connectivityListeners.delete(listener);
+}
+
+/** Snapshot of the current connectivity state. */
+export function getConnectivitySnapshot(): boolean {
+  return _isConnected;
+}
+
+// ---------------------------------------------------------------------------
+// Handle browser online/offline events
+// ---------------------------------------------------------------------------
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    // Flip indicator optimistically; sync result will confirm or revert.
+    if (!_isConnected) {
+      _isConnected = true;
+      emitConnectivity();
+    }
+    void syncNow();
+  });
+
+  window.addEventListener('offline', () => {
+    if (_isConnected) {
+      _isConnected = false;
+      emitConnectivity();
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Core sync logic
+// ---------------------------------------------------------------------------
+
 /** True if a server payload is a usable ClientState we should adopt. */
 function isAdoptableState(value: unknown): value is ClientState {
   if (typeof value !== 'object' || value === null) return false;
@@ -18,6 +84,7 @@ export async function syncNow(): Promise<void> {
   if (!state.profile.userId) return;
   try {
     const res = await api.postSync({ userId: state.profile.userId, state });
+    notifySyncResult(true);
     if (res.outcome === 'server-newer' || res.outcome === 'merged') {
       const incoming: ServerState = res.state;
       if (isAdoptableState(incoming)) {
@@ -26,6 +93,7 @@ export async function syncNow(): Promise<void> {
     }
   } catch {
     // Offline / server down — try again on the next interval.
+    notifySyncResult(false);
   }
 }
 

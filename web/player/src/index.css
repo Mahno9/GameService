@@ -100,6 +100,37 @@ body {
   font-weight: 400 !important;
 }
 
+/* Offline indicator pill (top-centre, unobtrusive) */
+.offline-pill {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(30, 30, 50, 0.88);
+  color: #f87171;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  pointer-events: none;
+  animation: offline-in 0.2s ease-out;
+}
+
+@keyframes offline-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* Start-game overlay (iOS compass permission gate) */
 .start-overlay {
   position: fixed;

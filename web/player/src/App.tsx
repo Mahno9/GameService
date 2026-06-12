@@ -22,6 +22,7 @@ import { SettingsPopover } from './ui/SettingsPopover';
 import type { MinigameResult } from './game/minigameLoader';
 import { initUiSound, playClick, setUiMuted } from './audio/uiSound';
 import { useI18n } from './i18n/index';
+import { OfflineIndicator } from './ui/OfflineIndicator';
 
 function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
   return { lat: (s + n) / 2, lon: (w + e) / 2 };
@@ -331,6 +332,7 @@ export function App() {
 
   return (
     <div className="app">
+      <OfflineIndicator />
       <MapView provider={provider} onMapReady={setMap} />
 
       {joystickProvider !== null && <Joystick onChange={handleVector} />}

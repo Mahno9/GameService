@@ -56,5 +56,7 @@
 
   "debug.exitTitle": "Debug mode disabled. Delete test session results?",
   "debug.delete": "Delete",
-  "debug.keep": "Keep"
+  "debug.keep": "Keep",
+
+  "net.offline": "Offline"
 }
