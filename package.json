@@ -14,7 +14,7 @@
     "dev:server": "npm run dev -w server",
     "dev:player": "npm run dev -w web/player",
     "dev:admin": "npm run dev -w web/admin",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present && node scripts/sync-minigames.mjs",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write ."

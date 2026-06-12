@@ -7,6 +7,7 @@ import { overpassRoutes } from './routes/overpass.js';
 import { settingsRoutes } from './routes/settings.js';
 import { tilesRoutes } from './routes/tiles.js';
 import { mapStyleRoutes } from './routes/mapStyle.js';
+import { minigamesRoutes } from './routes/minigames.js';
 import { poisRoutes } from './routes/pois.js';
 import { sessionRoutes } from './routes/session.js';
 
@@ -26,6 +27,7 @@ export async function buildApp() {
   await app.register(overpassRoutes);
   await app.register(tilesRoutes);
   await app.register(mapStyleRoutes);
+  await app.register(minigamesRoutes);
   await app.register(poisRoutes);
   await app.register(sessionRoutes);
   await registerStatic(app);
