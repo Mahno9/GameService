@@ -1,0 +1,123 @@
+.app,
+.map-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.map-container {
+  position: absolute;
+  inset: 0;
+}
+
+.map-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: #eaeaea;
+  font-size: 1.1rem;
+  line-height: 1.5;
+}
+
+/* Player marker: blue dot + white border + heading arrow */
+.player-marker {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-marker-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+.player-marker-arrow {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 10px solid #3b82f6;
+}
+
+/* Control buttons: semi-transparent dark, large touch targets */
+.map-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(26, 26, 46, 0.8);
+  color: #eaeaea;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.map-btn:active {
+  background: rgba(59, 130, 246, 0.8);
+}
+
+.map-zoom-controls {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+}
+
+.map-btn-recenter {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  font-size: 0.95rem;
+  z-index: 10;
+}
+
+/* On-screen virtual joystick (bottom-left) */
+.joystick-base {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(26, 26, 46, 0.55);
+  border: 2px solid rgba(234, 234, 234, 0.3);
+  touch-action: none;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.85);
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  will-change: transform;
+}
