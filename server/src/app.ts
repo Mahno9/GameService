@@ -10,6 +10,8 @@ import { mapStyleRoutes } from './routes/mapStyle.js';
 import { minigamesRoutes } from './routes/minigames.js';
 import { poisRoutes } from './routes/pois.js';
 import { sessionRoutes } from './routes/session.js';
+import { assetsRoutes } from './routes/assets.js';
+import { leaderboardRoutes } from './routes/leaderboard.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -32,6 +34,8 @@ export async function buildApp() {
   await app.register(minigamesRoutes);
   await app.register(poisRoutes);
   await app.register(sessionRoutes);
+  await app.register(assetsRoutes);
+  await app.register(leaderboardRoutes);
   await registerStatic(app);
 
   return app;
