@@ -7,6 +7,8 @@ import './map.css';
 
 interface MapViewProps {
   provider: PositionProvider;
+  /** Called with the map once 'load' fires, and with null on teardown. */
+  onMapReady?: (map: maplibregl.Map | null) => void;
 }
 
 type LoadState =
@@ -41,7 +43,7 @@ function createMarkerElement(): HTMLDivElement {
   return el;
 }
 
-export function MapView({ provider }: MapViewProps) {
+export function MapView({ provider, onMapReady }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
@@ -102,7 +104,9 @@ export function MapView({ provider }: MapViewProps) {
       });
 
       map.on('load', () => {
-        if (!cancelled) setState({ kind: 'ready' });
+        if (cancelled) return;
+        setState({ kind: 'ready' });
+        onMapReady?.(map);
       });
 
       const onPosition = (p: PlayerPosition) => {
@@ -129,12 +133,13 @@ export function MapView({ provider }: MapViewProps) {
       cancelled = true;
       if (unsubscribe) unsubscribe();
       provider.stop();
+      onMapReady?.(null);
       markerRef.current?.remove();
       markerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [provider]);
+  }, [provider, onMapReady]);
 
   function recenter() {
     followRef.current = true;
