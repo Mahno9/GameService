@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Арканоид",
+  "description": "Классический арканоид с бонусами, несколькими уровнями и визуальными эффектами.",
+  "type": "object",
+  "required": ["lives", "levels"],
+  "properties": {
+    "lives": {
+      "type": "integer",
+      "title": "Количество жизней",
+      "default": 3,
+      "minimum": 1
+    },
+    "levels": {
+      "type": "array",
+      "title": "Уровни",
+      "items": {
+        "type": "object",
+        "required": ["totalBlocks", "valuedBlockTypes"],
+        "properties": {
+          "backgroundImage": {
+            "type": "string",
+            "title": "Фон за блоками",
+            "x-type": "asset:image"
+          },
+          "totalBlocks": {
+            "type": "integer",
+            "title": "Всего блоков",
+            "default": 40,
+            "minimum": 1
+          },
+          "valuedBlockTypes": {
+            "type": "array",
+            "title": "Типы ценных блоков",
+            "items": {
+              "type": "object",
+              "required": ["color", "percent", "points"],
+              "properties": {
+                "color": {
+                  "type": "string",
+                  "title": "Цвет блока (CSS color)"
+                },
+                "percent": {
+                  "type": "number",
+                  "title": "Доля от общего числа (%)",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "points": {
+                  "type": "integer",
+                  "title": "Стоимость (баллы)",
+                  "minimum": 0
+                },
+                "lifetimeSeconds": {
+                  "type": "integer",
+                  "title": "Время жизни (сек, 0 = бессрочно)",
+                  "default": 0,
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "ballSpeed": {
+            "type": "number",
+            "title": "Скорость мяча",
+            "default": 6,
+            "minimum": 0
+          },
+          "ballAcceleration": {
+            "type": "number",
+            "title": "Ускорение мяча",
+            "default": 0.002,
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "sounds": {
+      "type": "object",
+      "title": "Звуки",
+      "properties": {
+        "bounce": {
+          "type": "string",
+          "title": "Отбив мяча",
+          "x-type": "asset:audio"
+        },
+        "blockBreak": {
+          "type": "string",
+          "title": "Разрушение блока",
+          "x-type": "asset:audio"
+        },
+        "bonus": {
+          "type": "string",
+          "title": "Подбор бонуса",
+          "x-type": "asset:audio"
+        },
+        "ballLost": {
+          "type": "string",
+          "title": "Потеря мяча",
+          "x-type": "asset:audio"
+        },
+        "win": {
+          "type": "string",
+          "title": "Победа",
+          "x-type": "asset:audio"
+        },
+        "lose": {
+          "type": "string",
+          "title": "Поражение",
+          "x-type": "asset:audio"
+        }
+      }
+    },
+    "music": {
+      "type": "string",
+      "title": "Фоновая музыка",
+      "x-type": "asset:audio"
+    }
+  }
+}

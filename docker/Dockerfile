@@ -8,6 +8,9 @@ COPY web/player/package.json web/player/
 COPY web/admin/package.json web/admin/
 COPY packages/tile-pipeline/package.json packages/tile-pipeline/
 COPY minigames/sliding-puzzle/package.json minigames/sliding-puzzle/
+COPY minigames/find-object/package.json minigames/find-object/
+COPY minigames/runner/package.json minigames/runner/
+COPY minigames/arkanoid/package.json minigames/arkanoid/
 RUN npm ci
 
 COPY tsconfig.base.json ./
