@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { runVectorJob } from '@gameservice/tile-pipeline';
+import { runVectorJob, runRasterJob } from '@gameservice/tile-pipeline';
 import type { JobStage, ProgressInfo } from '@gameservice/tile-pipeline';
 import { api, type Bbox, type TileJob } from '../api';
 
@@ -15,48 +15,60 @@ const STAGE_LABELS: Record<JobStage, string> = {
 
 type RunStatus = 'idle' | 'running' | 'done' | 'error' | 'cancelled';
 
-export function TileGenerationPanel({ savedBbox }: Props) {
-  const [minZoom, setMinZoom] = useState(14);
-  const [maxZoom, setMaxZoom] = useState(17);
-  const [runStatus, setRunStatus] = useState<RunStatus>('idle');
+type JobRunner = (
+  args: { bbox: Bbox; minZoom: number; maxZoom: number; signal: AbortSignal },
+  callbacks: {
+    onStage: (s: JobStage) => void;
+    onProgress: (p: ProgressInfo) => void;
+    onError: (err: Error) => void;
+  },
+) => Promise<void>;
+
+interface RunState {
+  status: RunStatus;
+  stage: JobStage | null;
+  progress: ProgressInfo | null;
+  errorMsg: string | null;
+  isRunning: boolean;
+  start: (bbox: Bbox, minZoom: number, maxZoom: number) => Promise<void>;
+  cancel: () => void;
+}
+
+/** Reusable run-state for a single tile job (vector or raster). */
+function useTileJobRun(runner: JobRunner, onSettled: () => void): RunState {
+  const [status, setStatus] = useState<RunStatus>('idle');
   const [stage, setStage] = useState<JobStage | null>(null);
   const [progress, setProgress] = useState<ProgressInfo | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<TileJob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    api.getTileJobs().then(setJobs).catch(() => undefined);
-  }, []);
-
-  async function startGeneration() {
-    if (!savedBbox) return;
-    setRunStatus('running');
+  async function start(bbox: Bbox, minZoom: number, maxZoom: number) {
+    setStatus('running');
     setStage(null);
     setProgress(null);
     setErrorMsg(null);
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      await runVectorJob(
-        { bbox: savedBbox, minZoom, maxZoom, signal: controller.signal },
+      await runner(
+        { bbox, minZoom, maxZoom, signal: controller.signal },
         {
           onStage: (s) => setStage(s),
           onProgress: (p) => setProgress(p),
           onError: (err) => setErrorMsg(err.message),
         },
       );
-      setRunStatus('done');
+      setStatus('done');
     } catch (err) {
       if (controller.signal.aborted) {
-        setRunStatus('cancelled');
+        setStatus('cancelled');
       } else {
-        setRunStatus('error');
+        setStatus('error');
         if (err instanceof Error) setErrorMsg(err.message);
       }
     } finally {
       abortRef.current = null;
-      api.getTileJobs().then(setJobs).catch(() => undefined);
+      onSettled();
     }
   }
 
@@ -64,11 +76,69 @@ export function TileGenerationPanel({ savedBbox }: Props) {
     abortRef.current?.abort();
   }
 
+  return {
+    status,
+    stage,
+    progress,
+    errorMsg,
+    isRunning: status === 'running',
+    start,
+    cancel,
+  };
+}
+
+export function TileGenerationPanel({ savedBbox }: Props) {
+  const [minZoom, setMinZoom] = useState(14);
+  const [maxZoom, setMaxZoom] = useState(17);
+  const [rasterMinZoom, setRasterMinZoom] = useState(11);
+  const [rasterMaxZoom, setRasterMaxZoom] = useState(13);
+  const [jobs, setJobs] = useState<TileJob[]>([]);
+
+  const refreshJobs = () => {
+    api.getTileJobs().then(setJobs).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    refreshJobs();
+  }, []);
+
+  const vector = useTileJobRun(runVectorJob, refreshJobs);
+  const raster = useTileJobRun(runRasterJob, refreshJobs);
+
   const noBbox = !savedBbox;
-  const isRunning = runStatus === 'running';
-  const pct = progress && progress.tilesTotal > 0
-    ? Math.round((progress.tilesDone / progress.tilesTotal) * 100)
-    : 0;
+  const anyRunning = vector.isRunning || raster.isRunning;
+
+  function renderRunState(run: RunState) {
+    const pct =
+      run.progress && run.progress.tilesTotal > 0
+        ? Math.round((run.progress.tilesDone / run.progress.tilesTotal) * 100)
+        : 0;
+    return (
+      <>
+        {run.isRunning && (
+          <div className="tile-progress-area">
+            {run.stage && <div className="tile-stage">{STAGE_LABELS[run.stage]}</div>}
+            {run.progress && (
+              <>
+                <div className="tile-progress-bar-wrap">
+                  <div className="tile-progress-bar" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="tile-progress-text">
+                  {run.progress.tilesDone} / {run.progress.tilesTotal} тайлов · зум{' '}
+                  {run.progress.zoom}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {run.status === 'done' && <div className="tile-status-ok">Готово ✓</div>}
+        {run.status === 'error' && run.errorMsg && (
+          <div className="tile-status-error">{run.errorMsg}</div>
+        )}
+        {run.status === 'cancelled' && <div className="tile-status-warn">Прервано</div>}
+      </>
+    );
+  }
 
   return (
     <div className="tile-panel">
@@ -82,7 +152,7 @@ export function TileGenerationPanel({ savedBbox }: Props) {
             min={0}
             max={22}
             value={minZoom}
-            disabled={isRunning}
+            disabled={vector.isRunning}
             onChange={(e) => setMinZoom(Number(e.target.value))}
             className="tile-zoom-input"
           />
@@ -94,7 +164,7 @@ export function TileGenerationPanel({ savedBbox }: Props) {
             min={0}
             max={22}
             value={maxZoom}
-            disabled={isRunning}
+            disabled={vector.isRunning}
             onChange={(e) => setMaxZoom(Number(e.target.value))}
             className="tile-zoom-input"
           />
@@ -102,40 +172,75 @@ export function TileGenerationPanel({ savedBbox }: Props) {
         {noBbox ? (
           <span className="tile-hint">Сначала выберите и сохраните участок</span>
         ) : (
-          !isRunning && (
-            <button onClick={() => { void startGeneration(); }} disabled={noBbox}>
+          !vector.isRunning && (
+            <button
+              onClick={() => {
+                if (savedBbox) void vector.start(savedBbox, minZoom, maxZoom);
+              }}
+              disabled={noBbox || anyRunning}
+            >
               Сгенерировать векторные тайлы
             </button>
           )
         )}
-        {isRunning && (
-          <button onClick={cancel} className="tile-cancel-btn">
+        {vector.isRunning && (
+          <button onClick={vector.cancel} className="tile-cancel-btn">
             Отмена
           </button>
         )}
       </div>
 
-      {isRunning && (
-        <div className="tile-progress-area">
-          {stage && <div className="tile-stage">{STAGE_LABELS[stage]}</div>}
-          {progress && (
-            <>
-              <div className="tile-progress-bar-wrap">
-                <div className="tile-progress-bar" style={{ width: `${pct}%` }} />
-              </div>
-              <div className="tile-progress-text">
-                {progress.tilesDone} / {progress.tilesTotal} тайлов · зум {progress.zoom}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      {renderRunState(vector)}
 
-      {runStatus === 'done' && <div className="tile-status-ok">Готово ✓</div>}
-      {runStatus === 'error' && errorMsg && (
-        <div className="tile-status-error">{errorMsg}</div>
-      )}
-      {runStatus === 'cancelled' && <div className="tile-status-warn">Прервано</div>}
+      <h3 className="tile-panel-title">Растровые тайлы</h3>
+
+      <div className="tile-panel-controls">
+        <label className="tile-zoom-label">
+          Мин. зум
+          <input
+            type="number"
+            min={0}
+            max={22}
+            value={rasterMinZoom}
+            disabled={raster.isRunning}
+            onChange={(e) => setRasterMinZoom(Number(e.target.value))}
+            className="tile-zoom-input"
+          />
+        </label>
+        <label className="tile-zoom-label">
+          Макс. зум
+          <input
+            type="number"
+            min={0}
+            max={22}
+            value={rasterMaxZoom}
+            disabled={raster.isRunning}
+            onChange={(e) => setRasterMaxZoom(Number(e.target.value))}
+            className="tile-zoom-input"
+          />
+        </label>
+        {noBbox ? (
+          <span className="tile-hint">Сначала выберите и сохраните участок</span>
+        ) : (
+          !raster.isRunning && (
+            <button
+              onClick={() => {
+                if (savedBbox) void raster.start(savedBbox, rasterMinZoom, rasterMaxZoom);
+              }}
+              disabled={noBbox || anyRunning}
+            >
+              Сгенерировать растровые тайлы
+            </button>
+          )
+        )}
+        {raster.isRunning && (
+          <button onClick={raster.cancel} className="tile-cancel-btn">
+            Отмена
+          </button>
+        )}
+      </div>
+
+      {renderRunState(raster)}
 
       {jobs.length > 0 && (
         <div className="tile-jobs-list">
