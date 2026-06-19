@@ -46,6 +46,7 @@ export interface Minigame {
   title: string;
   entryUrl: string;
   schemaUrl: string;
+  defaultConfig?: Record<string, unknown>;
 }
 
 export interface SessionUser {

@@ -89,7 +89,12 @@ export async function launchMinigame(opts: LaunchOptions): Promise<void> {
 
     const mod = (await import(/* @vite-ignore */ meta.entryUrl)) as MinigameModule;
 
-    const config: Record<string, unknown> = { ...poiConfig.config, muted };
+    // Effective config = game defaults ⊕ POI sparse override (top-level keys).
+    const config: Record<string, unknown> = {
+      ...(meta.defaultConfig ?? {}),
+      ...(poiConfig.config as Record<string, unknown>),
+      muted,
+    };
 
     handle = mod.init(overlay, config, {
       onComplete: (result) => cleanupAndFinish(result),

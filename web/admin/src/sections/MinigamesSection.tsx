@@ -21,6 +21,22 @@ function schemaWithoutEditorKeys(schema: Schema): Schema {
   return required ? { ...schema, properties, required } : { ...schema, properties };
 }
 
+type Cfg = Record<string, unknown>;
+
+/** Effective config = defaults ⊕ override, merged by top-level key. */
+function mergeTop(defaults: Cfg, override: Cfg): Cfg {
+  return { ...defaults, ...override };
+}
+
+/** Sparse override: only top-level keys of `config` that differ from `defaults`. */
+function diffTop(defaults: Cfg, config: Cfg): Cfg {
+  const out: Cfg = {};
+  for (const [key, value] of Object.entries(config)) {
+    if (JSON.stringify(value) !== JSON.stringify(defaults[key])) out[key] = value;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Minigame module contract (see minigame_contract.md)
 // ---------------------------------------------------------------------------
@@ -81,13 +97,11 @@ function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
             { ...config, muted: false },
             {
               onComplete: (result) => {
-                // eslint-disable-next-line no-console
                 console.log('[test-run] onComplete', result);
                 setBanner(`Завершено: ${result.won ? 'победа' : 'поражение'}, баллы: ${result.score}`);
                 cleanup();
               },
               onExit: () => {
-                // eslint-disable-next-line no-console
                 console.log('[test-run] onExit');
                 cleanup();
               },
@@ -119,26 +133,37 @@ function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Config modal for a single POI
+// Config modal — edits a config object for a minigame (defaults or per-POI)
 // ---------------------------------------------------------------------------
 
 interface ConfigModalProps {
-  poi: Poi;
-  minigame: Minigame | undefined;
+  minigame: Minigame;
+  title: string;
+  initialConfig: Cfg;
+  showReplayable: boolean;
+  initialReplayable?: boolean;
   onClose: () => void;
-  onSaved: (replayable: boolean) => void;
+  onSave: (config: Cfg, replayable: boolean) => Promise<void>;
 }
 
-function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
+function ConfigModal({
+  minigame,
+  title,
+  initialConfig,
+  showReplayable,
+  initialReplayable,
+  onClose,
+  onSave,
+}: ConfigModalProps) {
   const [schema, setSchema] = useState<Schema | null>(null);
-  const [config, setConfig] = useState<Record<string, unknown>>({});
-  const [replayable, setReplayable] = useState(poi.replayable);
+  const [config, setConfig] = useState<Cfg>(initialConfig);
+  const [replayable, setReplayable] = useState(initialReplayable ?? false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testRun, setTestRun] = useState(false);
 
-  const isFindObject = minigame?.id === 'find-object';
+  const isFindObject = minigame.id === 'find-object';
   // For find-object, the visual editor owns backgroundImage/overlays/targets;
   // SchemaForm renders the remaining fields (scoreThresholds, sounds, …).
   const formSchema = useMemo(
@@ -151,19 +176,13 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
     setLoading(true);
     setError(null);
 
-    const schemaPromise = minigame
-      ? fetch(minigame.schemaUrl).then((r) => r.json() as Promise<Schema>)
-      : Promise.resolve<Schema>({ type: 'object', properties: {} });
-
-    Promise.all([schemaPromise, api.getPoiConfig(poi.id)])
-      .then(([sch, cfg]) => {
-        if (cancelled) return;
-        setSchema(sch);
-        setConfig(cfg.config ?? {});
+    fetch(minigame.schemaUrl)
+      .then((r) => r.json() as Promise<Schema>)
+      .then((sch) => {
+        if (!cancelled) setSchema(sch);
       })
       .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Ошибка загрузки');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -172,14 +191,13 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [poi.id, minigame]);
+  }, [minigame.schemaUrl]);
 
   async function handleSave() {
     setSaving(true);
     setError(null);
     try {
-      await api.updatePoi(poi.id, { config, replayable });
-      onSaved(replayable);
+      await onSave(config, replayable);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ошибка сохранения');
     } finally {
@@ -194,7 +212,7 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className='modal-header'>
-          <span className='modal-title'>{poi.name}</span>
+          <span className='modal-title'>{title}</span>
           <button className='modal-close' title='Закрыть' onClick={onClose}>
             ✕
           </button>
@@ -210,24 +228,22 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
 
               {formSchema && <SchemaForm schema={formSchema} value={config} onChange={setConfig} />}
 
-              <label className='sf-field sf-field-check modal-replayable'>
-                <input
-                  type='checkbox'
-                  checked={replayable}
-                  onChange={(e) => setReplayable(e.target.checked)}
-                />
-                <span className='sf-label'>Повторяемая</span>
-              </label>
+              {showReplayable && (
+                <label className='sf-field sf-field-check modal-replayable'>
+                  <input
+                    type='checkbox'
+                    checked={replayable}
+                    onChange={(e) => setReplayable(e.target.checked)}
+                  />
+                  <span className='sf-label'>Повторяемая</span>
+                </label>
+              )}
             </>
           )}
         </div>
 
         <div className='modal-actions'>
-          <button
-            className='modal-test-btn'
-            disabled={!minigame || loading}
-            onClick={() => setTestRun(true)}
-          >
+          <button className='modal-test-btn' disabled={loading} onClick={() => setTestRun(true)}>
             ▶ Запустить в тестовом режиме
           </button>
           <div className='modal-actions-spacer' />
@@ -238,7 +254,7 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
         </div>
       </div>
 
-      {testRun && minigame && (
+      {testRun && (
         <TestRunOverlay
           entryUrl={minigame.entryUrl}
           config={config}
@@ -250,13 +266,25 @@ function ConfigModal({ poi, minigame, onClose, onSaved }: ConfigModalProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Main section
+// Main section — two lists: games (defaults + test launch) and POIs (override)
 // ---------------------------------------------------------------------------
+
+type Modal =
+  | {
+      minigame: Minigame;
+      title: string;
+      initialConfig: Cfg;
+      showReplayable: boolean;
+      initialReplayable?: boolean;
+      onSave: (config: Cfg, replayable: boolean) => Promise<void>;
+    }
+  | null;
 
 export function MinigamesSection() {
   const [pois, setPois] = useState<Poi[]>([]);
   const [minigames, setMinigames] = useState<Minigame[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [modal, setModal] = useState<Modal>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([api.getPois(), api.getMinigames()])
@@ -271,11 +299,69 @@ export function MinigamesSection() {
     return minigames.find((m) => m.id === poi.minigameId);
   }
 
-  const selectedPoi = pois.find((p) => p.id === selectedId) ?? null;
+  // --- Edit a game's default config ---
+  function openGame(mg: Minigame) {
+    setModal({
+      minigame: mg,
+      title: `${mg.title} — дефолтные ассеты`,
+      initialConfig: (mg.defaultConfig ?? {}) as Cfg,
+      showReplayable: false,
+      onSave: async (config) => {
+        await api.updateMinigameDefaults(mg.id, config);
+        setMinigames((prev) =>
+          prev.map((m) => (m.id === mg.id ? { ...m, defaultConfig: config } : m)),
+        );
+        setModal(null);
+      },
+    });
+  }
+
+  // --- Edit a POI's sparse override (over the game's defaults) ---
+  async function openPoi(poi: Poi) {
+    const mg = minigameFor(poi);
+    if (!mg) {
+      setError(`Неизвестная мини-игра: ${poi.minigameId}`);
+      return;
+    }
+    setError(null);
+    try {
+      const defaults = (mg.defaultConfig ?? {}) as Cfg;
+      const cfg = await api.getPoiConfig(poi.id);
+      const override = (cfg.config ?? {}) as Cfg;
+      setModal({
+        minigame: mg,
+        title: poi.name,
+        initialConfig: mergeTop(defaults, override),
+        showReplayable: true,
+        initialReplayable: poi.replayable,
+        onSave: async (config, replayable) => {
+          await api.updatePoi(poi.id, { config: diffTop(defaults, config), replayable });
+          setPois((prev) => prev.map((p) => (p.id === poi.id ? { ...p, replayable } : p)));
+          setModal(null);
+        },
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+    }
+  }
 
   return (
     <div className='minigames-section'>
       <h3 className='minigames-title'>Мини-игры</h3>
+      {error && <p className='sf-asset-error'>{error}</p>}
+
+      <h4 className='minigames-subtitle'>Игры</h4>
+      <div className='minigames-list'>
+        {minigames.map((mg) => (
+          <button key={mg.id} className='minigames-row' onClick={() => openGame(mg)}>
+            <span className='minigames-row-name'>{mg.title}</span>
+            <span className='minigames-row-game'>дефолтные ассеты ▸</span>
+          </button>
+        ))}
+        {minigames.length === 0 && <p className='minigames-empty'>Нет мини-игр.</p>}
+      </div>
+
+      <h4 className='minigames-subtitle'>Точки интереса</h4>
       <div className='minigames-list'>
         {pois.map((poi) => {
           const mg = minigameFor(poi);
@@ -283,7 +369,7 @@ export function MinigamesSection() {
             <button
               key={poi.id}
               className='minigames-row'
-              onClick={() => setSelectedId(poi.id)}
+              onClick={() => void openPoi(poi)}
             >
               <span className='minigames-row-name'>{poi.name}</span>
               <span className='minigames-row-game'>{mg?.title ?? poi.minigameId}</span>
@@ -293,17 +379,15 @@ export function MinigamesSection() {
         {pois.length === 0 && <p className='minigames-empty'>Нет точек интереса.</p>}
       </div>
 
-      {selectedPoi && (
+      {modal && (
         <ConfigModal
-          poi={selectedPoi}
-          minigame={minigameFor(selectedPoi)}
-          onClose={() => setSelectedId(null)}
-          onSaved={(replayable) => {
-            setPois((prev) =>
-              prev.map((p) => (p.id === selectedPoi.id ? { ...p, replayable } : p)),
-            );
-            setSelectedId(null);
-          }}
+          minigame={modal.minigame}
+          title={modal.title}
+          initialConfig={modal.initialConfig}
+          showReplayable={modal.showReplayable}
+          initialReplayable={modal.initialReplayable ?? false}
+          onClose={() => setModal(null)}
+          onSave={modal.onSave}
         />
       )}
     </div>

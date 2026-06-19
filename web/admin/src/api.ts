@@ -124,6 +124,7 @@ export interface Minigame {
   title: string;
   entryUrl: string;
   schemaUrl: string;
+  defaultConfig?: Record<string, unknown>;
 }
 
 /** @deprecated Use Asset instead */
@@ -157,6 +158,11 @@ export const api = {
   getTileJobs: () => request<TileJob[]>('/api/admin/tile-jobs'),
   getPois: () => request<Poi[]>('/api/pois'),
   getMinigames: () => request<Minigame[]>('/api/minigames'),
+  updateMinigameDefaults: (id: string, config: Record<string, unknown>) =>
+    request<{ ok: true }>(`/api/admin/minigames/${id}/defaults`, {
+      method: 'PUT',
+      body: JSON.stringify({ config }),
+    }),
   getPoiConfig: (id: string) => request<PoiConfig>(`/api/pois/${id}/config`),
   getAssets: () => request<Asset[]>('/api/admin/assets'),
   deleteAsset: (id: string) =>

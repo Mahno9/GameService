@@ -795,6 +795,12 @@ select {
   margin-bottom: 16px;
 }
 
+.minigames-subtitle {
+  font-size: 14px;
+  opacity: 0.7;
+  margin: 16px 0 8px;
+}
+
 .minigames-list {
   display: flex;
   flex-direction: column;

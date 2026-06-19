@@ -3,6 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import type { FastifyInstance } from 'fastify';
+import { getDb } from '../db/connection.js';
+import { getAllDefaults, setDefaults } from '../repos/minigameDefaults.js';
 
 const serverRoot = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 export const minigamesDir = path.join(serverRoot, 'static', 'minigames');
@@ -39,7 +41,32 @@ export function scanMinigames(dir = minigamesDir): MinigameInfo[] {
 }
 
 export async function minigamesRoutes(app: FastifyInstance) {
-  app.get('/api/minigames', async () => scanMinigames());
+  // GET /api/minigames — scanned games, each augmented with its stored default config.
+  app.get('/api/minigames', async () => {
+    const defaults = getAllDefaults(getDb());
+    return scanMinigames().map((m) => ({ ...m, defaultConfig: defaults[m.id] ?? {} }));
+  });
+
+  // PUT /api/admin/minigames/:id/defaults — set a game's default config.
+  app.put<{ Params: { id: string }; Body: { config: Record<string, unknown> } }>(
+    '/api/admin/minigames/:id/defaults',
+    {
+      preHandler: app.requireAdmin,
+      schema: {
+        body: {
+          type: 'object',
+          required: ['config'],
+          properties: { config: { type: 'object' } },
+        },
+      },
+    },
+    async (req, reply) => {
+      const known = scanMinigames().some((m) => m.id === req.params.id);
+      if (!known) return reply.code(404).send({ error: 'Unknown minigame' });
+      setDefaults(getDb(), req.params.id, req.body.config);
+      return { ok: true };
+    },
+  );
 
   if (fs.existsSync(minigamesDir)) {
     await app.register(fastifyStatic, {
