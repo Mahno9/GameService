@@ -120,9 +120,17 @@ function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
     };
   }, [entryUrl, config]);
 
+  // Close only via the ✕, and confirm while the game is still running (a result
+  // banner means it finished — nothing left to lose, so close immediately).
+  function requestClose() {
+    if (banner !== null || window.confirm('Выйти из игры? Весь прогресс будет потерян.')) {
+      onClose();
+    }
+  }
+
   return (
     <div className='test-run-overlay'>
-      <button className='test-run-close' title='Закрыть' onClick={onClose}>
+      <button className='test-run-close' title='Закрыть' onClick={requestClose}>
         ✕
       </button>
       {banner && <div className='test-run-banner'>{banner}</div>}
@@ -206,11 +214,12 @@ function ConfigModal({
   }
 
   return (
-    <div className='modal-overlay' onClick={onClose}>
-      <div
-        className={`modal-card${isFindObject ? ' modal-card--wide' : ''}`}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <>
+      <div className='modal-overlay' onClick={onClose}>
+        <div
+          className={`modal-card${isFindObject ? ' modal-card--wide' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className='modal-header'>
           <span className='modal-title'>{title}</span>
           <button className='modal-close' title='Закрыть' onClick={onClose}>
@@ -252,8 +261,11 @@ function ConfigModal({
           </button>
           <button onClick={onClose}>Отмена</button>
         </div>
+        </div>
       </div>
 
+      {/* Sibling of the backdrop, not a child — so clicks inside the game don't
+          bubble to the modal-overlay onClose and close everything. */}
       {testRun && (
         <TestRunOverlay
           entryUrl={minigame.entryUrl}
@@ -261,7 +273,7 @@ function ConfigModal({
           onClose={() => setTestRun(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 
