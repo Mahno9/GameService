@@ -28,6 +28,16 @@ function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
   return { lat: (s + n) / 2, lon: (w + e) / 2 };
 }
 
+// Debug start point set from the admin POI overview tab (same-origin localStorage).
+function readDebugStart(): { lat: number; lon: number } | null {
+  try {
+    const v = localStorage.getItem('gs_debug_start');
+    return v ? (JSON.parse(v) as { lat: number; lon: number }) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -76,6 +86,12 @@ export function App() {
   // GPS-loss toast visibility.
   const [showGpsToast, setShowGpsToast] = useState(false);
 
+  // "North up" map mode: off = relative joystick steering, on = absolute + north-up.
+  const [northUp, setNorthUp] = useState(false);
+
+  // Debug/preview joystick controls: live speed stepper.
+  const [joySpeed, setJoySpeed] = useState(1);
+
   // iOS compass permission gate: show "Начать игру" button only when needed.
   const [needsStartGesture, setNeedsStartGesture] = useState(false);
 
@@ -113,6 +129,10 @@ export function App() {
         initUiSound(settings.ui_click_sound_url ?? null);
         setUiMuted(localState.getSnapshot().prefs.muted);
 
+        // In debug mode, start the joystick at the point set from the admin
+        // POI overview tab, if one was saved; otherwise the map center.
+        const debugStart = settings.debug_mode ? readDebugStart() : null;
+
         setBoot({
           settings: {
             debug_mode: settings.debug_mode,
@@ -122,7 +142,7 @@ export function App() {
             sync_interval_s: settings.sync_interval_s,
             ui_click_sound_url: settings.ui_click_sound_url ?? null,
           },
-          bboxCenter: bboxCenter(meta.bbox),
+          bboxCenter: debugStart ?? bboxCenter(meta.bbox),
           pois,
           minigames,
         });
@@ -154,6 +174,8 @@ export function App() {
   // -------------------------------------------------------------------------
   useEffect(() => {
     if (!boot) return;
+
+    setJoySpeed(boot.settings.joystick_speed_mps);
 
     let initialProvider: PositionProvider;
     let joystick: JoystickProvider | null = null;
@@ -252,6 +274,11 @@ export function App() {
     [joystickProvider],
   );
 
+  // Apply the north-up mode to the provider (also re-applies after a swap).
+  useEffect(() => {
+    joystickProvider?.setNorthUp(northUp);
+  }, [joystickProvider, northUp]);
+
   // -------------------------------------------------------------------------
   // Derived data
   // -------------------------------------------------------------------------
@@ -333,9 +360,47 @@ export function App() {
   return (
     <div className="app">
       <OfflineIndicator />
-      <MapView provider={provider} onMapReady={setMap} />
+      <MapView
+        provider={provider}
+        onMapReady={setMap}
+        northUp={northUp}
+        onToggleNorthUp={() => setNorthUp((v) => !v)}
+      />
 
       {joystickProvider !== null && <Joystick onChange={handleVector} />}
+
+      {/* Debug/preview joystick controls: live speed stepper + tap-to-place start */}
+      {joystickProvider !== null && (
+        <div className="joy-controls">
+          <div className="joy-speed">
+            <button
+              type="button"
+              className="map-btn"
+              aria-label="−"
+              onClick={() => {
+                const next = Math.max(0.1, joySpeed / 2);
+                setJoySpeed(next);
+                joystickProvider.setSpeed(next);
+              }}
+            >
+              −
+            </button>
+            <span className="joy-speed-val">{joySpeed.toFixed(1)} м/с</span>
+            <button
+              type="button"
+              className="map-btn"
+              aria-label="+"
+              onClick={() => {
+                const next = joySpeed * 2;
+                setJoySpeed(next);
+                joystickProvider.setSpeed(next);
+              }}
+            >
+              ＋
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="hud-chip">
         <span className="hud-avatar">{state.profile.avatarEmoji}</span>

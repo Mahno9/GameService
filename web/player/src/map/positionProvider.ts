@@ -14,6 +14,8 @@ export interface PositionProvider {
 }
 
 const METERS_PER_DEG = 111320;
+// ponytail: fixed turn speed, expose as a setting if players want it tunable
+const TURN_RATE_DEG_PER_SEC = 120;
 
 function normalizeDegrees(deg: number): number {
   return ((deg % 360) + 360) % 360;
@@ -28,10 +30,13 @@ function normalizeDegrees(deg: number): number {
  * position in a ~10 Hz loop while a non-zero vector is set.
  */
 export class JoystickProvider implements PositionProvider {
-  private readonly speedMps: number;
+  private speedMps: number;
   private pos: PlayerPosition;
   private dx = 0;
   private dy = 0;
+  // false = relative steering (dy = forward/back, dx = turn);
+  // true  = "north up": absolute joystick, position moves in world dx/dy.
+  private northUp = false;
   private timer: ReturnType<typeof setInterval> | null = null;
   private last = 0;
   private readonly subscribers = new Set<(p: PlayerPosition) => void>();
@@ -46,11 +51,23 @@ export class JoystickProvider implements PositionProvider {
     };
   }
 
-  /** Normalized vector from the joystick: -1..1, dy>0 = up = north. */
+  /** Change movement speed on the fly (m/s). Debug/preview control. */
+  setSpeed(mps: number): void {
+    this.speedMps = mps;
+  }
+
+  /** Toggle "north up" mode (absolute joystick) vs relative steering. */
+  setNorthUp(v: boolean): void {
+    this.northUp = v;
+  }
+
+  /** Normalized vector from the joystick: -1..1, dy>0 = up. */
   setVector(dx: number, dy: number): void {
     this.dx = dx;
     this.dy = dy;
-    if (dx !== 0 || dy !== 0) {
+    // North-up: the stick direction is the heading. Relative: heading evolves
+    // from the turn rate inside tick(), so leave it alone here.
+    if (this.northUp && (dx !== 0 || dy !== 0)) {
       this.pos.heading = normalizeDegrees((Math.atan2(dx, dy) * 180) / Math.PI);
     }
   }
@@ -81,14 +98,32 @@ export class JoystickProvider implements PositionProvider {
     this.last = now;
     if (this.dx === 0 && this.dy === 0) return;
     const dist = this.speedMps * dt;
-    this.pos = {
-      ...this.pos,
-      lat: this.pos.lat + (this.dy * dist) / METERS_PER_DEG,
-      lon:
-        this.pos.lon +
-        (this.dx * dist) / (METERS_PER_DEG * Math.cos((this.pos.lat * Math.PI) / 180)),
-      timestamp: Date.now(),
-    };
+    if (this.northUp) {
+      // Absolute: move directly in world space along the stick vector.
+      this.pos = {
+        ...this.pos,
+        lat: this.pos.lat + (this.dy * dist) / METERS_PER_DEG,
+        lon:
+          this.pos.lon +
+          (this.dx * dist) / (METERS_PER_DEG * Math.cos((this.pos.lat * Math.PI) / 180)),
+        timestamp: Date.now(),
+      };
+    } else {
+      // Relative: dx turns the heading, dy drives forward/back along it.
+      let heading = this.pos.heading ?? 0;
+      heading = normalizeDegrees(heading + this.dx * TURN_RATE_DEG_PER_SEC * dt);
+      const rad = (heading * Math.PI) / 180;
+      this.pos = {
+        ...this.pos,
+        heading,
+        lat: this.pos.lat + (this.dy * dist * Math.cos(rad)) / METERS_PER_DEG,
+        lon:
+          this.pos.lon +
+          (this.dy * dist * Math.sin(rad)) /
+            (METERS_PER_DEG * Math.cos((this.pos.lat * Math.PI) / 180)),
+        timestamp: Date.now(),
+      };
+    }
     this.emit();
   }
 

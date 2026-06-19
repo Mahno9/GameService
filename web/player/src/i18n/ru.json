@@ -4,6 +4,7 @@
   "map.center": "Центрировать",
   "map.zoomIn": "Приблизить",
   "map.zoomOut": "Отдалить",
+  "map.northUp": "Север сверху",
 
   "app.loading": "Загрузка…",
   "app.loadError": "Ошибка загрузки",

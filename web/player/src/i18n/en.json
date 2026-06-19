@@ -4,6 +4,7 @@
   "map.center": "Center",
   "map.zoomIn": "Zoom in",
   "map.zoomOut": "Zoom out",
+  "map.northUp": "North up",
 
   "app.loading": "Loading…",
   "app.loadError": "Load error",

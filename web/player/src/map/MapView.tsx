@@ -11,6 +11,9 @@ interface MapViewProps {
   provider: PositionProvider;
   /** Called with the map once 'load' fires, and with null on teardown. */
   onMapReady?: (map: maplibregl.Map | null) => void;
+  /** When true, map stays north-up; otherwise it rotates to follow heading. */
+  northUp: boolean;
+  onToggleNorthUp: () => void;
 }
 
 type LoadState =
@@ -45,14 +48,22 @@ function createMarkerElement(): HTMLDivElement {
   return el;
 }
 
-export function MapView({ provider, onMapReady }: MapViewProps) {
+export function MapView({ provider, onMapReady, northUp, onToggleNorthUp }: MapViewProps) {
   const t = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const followRef = useRef(true);
+  const northUpRef = useRef(northUp);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [followMode, setFollowMode] = useState(true);
+
+  // Keep the ref the camera loop reads in sync with the prop, and snap the map
+  // to north when the mode turns on.
+  useEffect(() => {
+    northUpRef.current = northUp;
+    if (northUp) mapRef.current?.easeTo({ bearing: 0, duration: 500 });
+  }, [northUp]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,14 +94,16 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
         center: bboxCenter(meta.bbox),
         zoom: 16,
         pitch: 45,
+        pitchWithRotate: false,
         maxBounds: padBounds(meta.bbox),
         attributionControl: false,
       });
       mapRef.current = map;
 
-      // Bearing is driven by movement heading, not user gestures.
-      map.dragRotate.disable();
-      map.touchZoomRotate.disableRotation();
+      // Bearing follows movement heading by default, but the user can rotate by
+      // hand: right-mouse drag on desktop, two-finger twist on touch. Keep pitch
+      // fixed (no tilt-on-rotate, no two-finger pitch) so gestures only rotate/zoom.
+      map.touchPitch.disable();
 
       const marker = new maplibregl.Marker({
         element: createMarkerElement(),
@@ -100,8 +113,13 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
         .addTo(map);
       markerRef.current = marker;
 
-      // User panning breaks follow mode until «центрировать» is pressed.
+      // User panning or rotating breaks follow mode until «центрировать» is pressed.
       map.on('dragstart', () => {
+        followRef.current = false;
+        setFollowMode(false);
+      });
+      map.on('rotatestart', (e) => {
+        if (!e.originalEvent) return; // ignore programmatic easeTo, only user gestures
         followRef.current = false;
         setFollowMode(false);
       });
@@ -121,7 +139,7 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
         if (followRef.current) {
           map.easeTo({
             center: [p.lon, p.lat],
-            bearing: p.heading ?? map.getBearing(),
+            bearing: northUpRef.current ? 0 : (p.heading ?? map.getBearing()),
             duration: 500,
           });
         }
@@ -152,7 +170,11 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
     const map = mapRef.current;
     if (m && map) {
       const ll = m.getLngLat();
-      map.easeTo({ center: [ll.lng, ll.lat], duration: 500 });
+      map.easeTo({
+        center: [ll.lng, ll.lat],
+        bearing: northUpRef.current ? 0 : map.getBearing(),
+        duration: 500,
+      });
     }
   }
 
@@ -171,31 +193,44 @@ export function MapView({ provider, onMapReady }: MapViewProps) {
     <div className="map-root">
       <div ref={containerRef} className="map-container" />
       {state.kind === 'ready' && (
-        <>
+        <div className="map-zoom-controls">
           {!followMode && (
-            <button className="map-btn map-btn-recenter" onClick={recenter} type="button">
-              {t('map.center')}
+            <button
+              className="map-btn"
+              onClick={recenter}
+              type="button"
+              title={t('map.center')}
+              aria-label={t('map.center')}
+            >
+              🎯
             </button>
           )}
-          <div className="map-zoom-controls">
-            <button
-              className="map-btn"
-              onClick={() => { playClick(); mapRef.current?.zoomIn(); }}
-              type="button"
-              aria-label={t('map.zoomIn')}
-            >
-              +
-            </button>
-            <button
-              className="map-btn"
-              onClick={() => { playClick(); mapRef.current?.zoomOut(); }}
-              type="button"
-              aria-label={t('map.zoomOut')}
-            >
-              −
-            </button>
-          </div>
-        </>
+          <button
+            className={`map-btn${northUp ? ' active' : ''}`}
+            onClick={() => { playClick(); onToggleNorthUp(); }}
+            type="button"
+            title={t('map.northUp')}
+            aria-label={t('map.northUp')}
+          >
+            🧭
+          </button>
+          <button
+            className="map-btn"
+            onClick={() => { playClick(); mapRef.current?.zoomIn(); }}
+            type="button"
+            aria-label={t('map.zoomIn')}
+          >
+            +
+          </button>
+          <button
+            className="map-btn"
+            onClick={() => { playClick(); mapRef.current?.zoomOut(); }}
+            type="button"
+            aria-label={t('map.zoomOut')}
+          >
+            −
+          </button>
+        </div>
       )}
     </div>
   );
