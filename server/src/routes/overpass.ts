@@ -5,9 +5,9 @@ import type { FastifyInstance } from 'fastify';
 import { paths } from '../config.js';
 
 const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
 ];
 
 export type Bbox = [west: number, south: number, east: number, north: number];
@@ -68,7 +68,10 @@ export async function overpassRoutes(app: FastifyInstance) {
           const res = await fetch(mirror, {
             method: 'POST',
             body: query,
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent': 'GameService/1.0',
+            },
             signal: AbortSignal.timeout(150_000),
           });
           if (!res.ok) {
