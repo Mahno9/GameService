@@ -68,10 +68,25 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
+let audioCtx: AudioContext | null = null;
+const audioBuffers = new Map<string, AudioBuffer>();
+
+function preloadSound(url: string | undefined): void {
+  if (!url || audioBuffers.has(url)) return;
+  if (!audioCtx) audioCtx = new AudioContext();
+  void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+}
+
 function playSound(url: string | undefined, muted: boolean): void {
   if (muted || !url) return;
-  const audio = new Audio(url);
-  audio.play().catch(() => {});
+  const buf = audioBuffers.get(url);
+  if (!buf || !audioCtx) { new Audio(url).play().catch(() => {}); return; }
+  const ctx = audioCtx;
+  const fire = () => {
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+  };
+  ctx.state !== 'running' ? void ctx.resume().then(fire) : fire();
 }
 
 // ---------------------------------------------------------------------------
@@ -221,6 +236,9 @@ export function init(
   let muted = config.muted === true;
   let done = false;
   let currentRound = 0;
+
+  // Preload sounds so cloneNode() plays instantly
+  Object.values(config.sounds ?? {}).forEach(preloadSound);
   let board: Board = [];
   let timerInterval: ReturnType<typeof setInterval> | null = null;
   let elapsedSeconds = 0;

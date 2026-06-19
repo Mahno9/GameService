@@ -262,10 +262,21 @@ export function init(
   let muted = config.muted === true;
   let music: HTMLAudioElement | null = null;
 
+  const audioCtx = new AudioContext();
+  const audioBuffers = new Map<string, AudioBuffer>();
+  for (const url of Object.values(sounds)) {
+    if (url) void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+  }
+
   function playSound(url: string | undefined): void {
     if (muted || !url) return;
-    const a = new Audio(url);
-    a.play().catch(() => {});
+    const buf = audioBuffers.get(url);
+    if (!buf) { new Audio(url).play().catch(() => {}); return; }
+    const fire = () => {
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
+    };
+    audioCtx.state !== 'running' ? void audioCtx.resume().then(fire) : fire();
   }
 
   function startMusic(): void {
@@ -497,6 +508,7 @@ export function init(
           playSound(sounds.bounce);
           break;
         case 'blockBreak':
+          playSound(sounds.bounce);
           playSound(sounds.blockBreak);
           break;
         case 'bonusCollect':
@@ -675,6 +687,7 @@ export function init(
     window.removeEventListener('pointercancel', onPointerUp);
     window.removeEventListener('deviceorientation', onOrientation);
     bgCache.clear();
+    void audioCtx.close();
     container.innerHTML = '';
   }
 

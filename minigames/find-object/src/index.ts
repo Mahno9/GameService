@@ -273,10 +273,21 @@ export function init(
   function stopMusic(): void {
     if (music) music.pause();
   }
+  const sfxCtx = new AudioContext();
+  const sfxBuffers = new Map<string, AudioBuffer>();
+  for (const url of [config.sounds?.found, config.sounds?.win]) {
+    if (url) void fetch(url).then(r => r.arrayBuffer()).then(ab => sfxCtx.decodeAudioData(ab)).then(buf => sfxBuffers.set(url, buf)).catch(() => {});
+  }
+
   function playSfx(url: string | undefined): void {
     if (muted || !url) return;
-    const a = new Audio(url);
-    a.play().catch(() => {});
+    const buf = sfxBuffers.get(url);
+    if (!buf) { new Audio(url).play().catch(() => {}); return; }
+    const fire = () => {
+      const src = sfxCtx.createBufferSource();
+      src.buffer = buf; src.connect(sfxCtx.destination); src.start(0);
+    };
+    sfxCtx.state !== 'running' ? void sfxCtx.resume().then(fire) : fire();
   }
 
   // --- once-latch ---
@@ -925,6 +936,7 @@ export function init(
       music.src = '';
       music = null;
     }
+    void sfxCtx.close();
     container.innerHTML = '';
   }
 

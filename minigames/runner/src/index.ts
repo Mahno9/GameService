@@ -63,10 +63,25 @@ const OVERCOME_SPRITE_MS = 600; // how long to show overcomeImage
 // Helpers
 // ---------------------------------------------------------------------------
 
+let audioCtx: AudioContext | null = null;
+const audioBuffers = new Map<string, AudioBuffer>();
+
+function preloadSound(url: string | undefined): void {
+  if (!url || audioBuffers.has(url)) return;
+  if (!audioCtx) audioCtx = new AudioContext();
+  void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+}
+
 function playSound(url: string | undefined, muted: boolean): void {
   if (muted || !url) return;
-  const audio = new Audio(url);
-  audio.play().catch(() => {});
+  const buf = audioBuffers.get(url);
+  if (!buf || !audioCtx) { new Audio(url).play().catch(() => {}); return; }
+  const ctx = audioCtx;
+  const fire = () => {
+    const src = ctx.createBufferSource();
+    src.buffer = buf; src.connect(ctx.destination); src.start(0);
+  };
+  ctx.state !== 'running' ? void ctx.resume().then(fire) : fire();
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -204,6 +219,10 @@ export function init(
   let done = false;
   let rafId = 0;
   let lastTime: number | null = null;
+
+  // Preload sounds into AudioBuffer for zero-latency playback
+  Object.values(config.sounds ?? {}).forEach(preloadSound);
+  config.obstacleTypes?.forEach((t) => preloadSound(t.overcomeSound));
   let musicAudio: HTMLAudioElement | null = null;
 
   // --- once-latch ---

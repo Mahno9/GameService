@@ -2,6 +2,31 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 
 // ---------------------------------------------------------------------------
+// WAV encoder — used to re-encode trimmed mic recordings
+// ---------------------------------------------------------------------------
+
+function encodeWav(buf: AudioBuffer): ArrayBuffer {
+  const nCh = buf.numberOfChannels;
+  const sr = buf.sampleRate;
+  const ab = new ArrayBuffer(44 + buf.length * nCh * 2);
+  const v = new DataView(ab);
+  const str = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, ab.byteLength - 8, true);
+  str(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+  v.setUint16(22, nCh, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, buf.length * nCh * 2, true);
+  let o = 44;
+  for (let i = 0; i < buf.length; i++) {
+    for (let ch = 0; ch < nCh; ch++) {
+      const s = Math.max(-1, Math.min(1, buf.getChannelData(ch)[i] ?? 0));
+      v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2;
+    }
+  }
+  return ab;
+}
+
+// ---------------------------------------------------------------------------
 // JSON-Schema (draft-07) subset + x-type extensions
 // ---------------------------------------------------------------------------
 
@@ -74,20 +99,22 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
   const [recording, setRecording] = useState<'idle' | 'init' | 'rec'>('idle');
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const uploadSeqRef = useRef(0);
 
   const accept = kind === 'audio' ? 'audio/*' : kind === 'gif' ? 'image/gif,image/*' : 'image/*';
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
+    const seq = ++uploadSeqRef.current;
     setBusy(true);
     setError(null);
     try {
       const asset = await api.uploadAsset(file);
-      onChange(asset.url);
+      if (seq === uploadSeqRef.current) onChange(asset.url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка загрузки');
+      if (seq === uploadSeqRef.current) setError(e instanceof Error ? e.message : 'Ошибка загрузки');
     } finally {
-      setBusy(false);
+      if (seq === uploadSeqRef.current) setBusy(false);
     }
   }
 
@@ -102,11 +129,36 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        const mime = recorder.mimeType || 'audio/webm';
-        const ext = mime.includes('ogg') ? 'ogg' : 'webm';
-        const blob = new Blob(chunksRef.current, { type: mime });
-        void handleFile(new File([blob], `mic-recording.${ext}`, { type: mime }));
         setRecording('idle');
+        const mime = recorder.mimeType || 'audio/webm';
+        const rawBlob = new Blob(chunksRef.current, { type: mime });
+        void (async () => {
+          let file: File;
+          try {
+            const ctx = new AudioContext();
+            const decoded = await ctx.decodeAudioData(await rawBlob.arrayBuffer());
+            void ctx.close();
+            const ch0 = decoded.getChannelData(0);
+            let trimSample = 0;
+            for (let i = 0; i < ch0.length; i++) {
+              if (Math.abs(ch0[i] ?? 0) > 0.01) { trimSample = i; break; }
+            }
+            let trimmed = decoded;
+            if (trimSample > 0) {
+              const offline = new OfflineAudioContext(decoded.numberOfChannels, decoded.length - trimSample, decoded.sampleRate);
+              const src = offline.createBufferSource();
+              src.buffer = decoded;
+              src.connect(offline.destination);
+              src.start(0, trimSample / decoded.sampleRate);
+              trimmed = await offline.startRendering();
+            }
+            file = new File([encodeWav(trimmed)], 'mic-recording.wav', { type: 'audio/wav' });
+          } catch {
+            const ext = mime.includes('ogg') ? 'ogg' : 'webm';
+            file = new File([rawBlob], `mic-recording.${ext}`, { type: mime });
+          }
+          void handleFile(file);
+        })();
       };
       recorder.start();
       recorderRef.current = recorder;
@@ -150,7 +202,7 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
         <img className='sf-asset-preview' src={value} alt='' />
       ))}
       {value && (
-        <button type='button' className='sf-asset-clear' onClick={() => onChange('')}>
+        <button type='button' className='sf-asset-clear' onClick={() => onChange('')} disabled={busy}>
           Убрать
         </button>
       )}
@@ -275,10 +327,14 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
     ? (value as Record<string, Json>)
     : {}) as Record<string, Json>;
 
+  // ref keeps latest obj so async handleFile closures don't overwrite sibling keys with stale data
+  const objRef = useRef(obj);
+  objRef.current = obj;
+
   const props = schema.properties ?? {};
 
   function setKey(key: string, next: Json) {
-    onChange({ ...obj, [key]: next });
+    onChange({ ...objRef.current, [key]: next });
   }
 
   return (
