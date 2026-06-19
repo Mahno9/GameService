@@ -1021,6 +1021,18 @@ select {
   padding: 4px 10px;
 }
 
+.sf-record-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sf-record-btn--active {
+  background: #ef4444;
+  color: #fff;
+}
+
 /* =========================================================================
    Test-run overlay (isolated launch)
    ========================================================================= */

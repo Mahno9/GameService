@@ -25,6 +25,8 @@ const MIME_MAP: Record<string, MimeMeta> = {
   'audio/mpeg': { kind: 'audio', ext: 'mp3' },
   'audio/ogg': { kind: 'audio', ext: 'ogg' },
   'audio/wav': { kind: 'audio', ext: 'wav' },
+  'audio/webm': { kind: 'audio', ext: 'webm' },
+  'audio/webm;codecs=opus': { kind: 'audio', ext: 'webm' },
 };
 
 // ---------------------------------------------------------------------------

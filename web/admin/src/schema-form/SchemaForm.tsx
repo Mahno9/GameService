@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../api';
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,9 @@ interface AssetWidgetProps {
 function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recording, setRecording] = useState<'idle' | 'init' | 'rec'>('idle');
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   const accept = kind === 'audio' ? 'audio/*' : kind === 'gif' ? 'image/gif,image/*' : 'image/*';
 
@@ -88,6 +91,37 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
     }
   }
 
+  async function startRecording() {
+    if (recorderRef.current) return;
+    setError(null);
+    setRecording('init');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const mime = recorder.mimeType || 'audio/webm';
+        const ext = mime.includes('ogg') ? 'ogg' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: mime });
+        void handleFile(new File([blob], `mic-recording.${ext}`, { type: mime }));
+        setRecording('idle');
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording('rec');
+    } catch {
+      setError('Нет доступа к микрофону');
+      setRecording('idle');
+    }
+  }
+
+  function stopRecording() {
+    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+    recorderRef.current = null;
+  }
+
   return (
     <div className='sf-asset'>
       <input
@@ -96,6 +130,18 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
         disabled={busy}
         onChange={(e) => void handleFile(e.target.files?.[0] ?? undefined)}
       />
+      {kind === 'audio' && (
+        <button
+          type='button'
+          className={`sf-record-btn${recording === 'rec' ? ' sf-record-btn--active' : ''}`}
+          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); void startRecording(); }}
+          onPointerUp={stopRecording}
+          onPointerLeave={stopRecording}
+          disabled={busy || recording === 'init'}
+        >
+          {recording === 'init' ? '⏳ Инициализация…' : recording === 'rec' ? '⏹ Запись… (отпустите)' : '🎙 Записать с микрофона'}
+        </button>
+      )}
       {busy && <span className='sf-asset-hint'>Загрузка…</span>}
       {error && <span className='sf-asset-error'>{error}</span>}
       {value && (kind === 'audio' ? (
