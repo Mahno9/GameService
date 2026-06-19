@@ -8,6 +8,9 @@ import { bboxToPolygon, circlePolygon } from '../lib/geo';
 // OSM style (same as PoiSection)
 // ---------------------------------------------------------------------------
 
+// Shared with the player app (same origin): debug joystick start point.
+const DEBUG_START_KEY = 'gs_debug_start';
+
 const OSM_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -63,10 +66,34 @@ function PoiOverviewTab() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const startMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   const [pois, setPois] = useState<Poi[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [ready, setReady] = useState(false);
+  const [startPoint, setStartPoint] = useState<{ lat: number; lon: number } | null>(null);
+
+  // Drop or move the start-point pin at the given coords.
+  function placeStartMarker(map: maplibregl.Map, lat: number, lon: number) {
+    if (startMarkerRef.current) {
+      startMarkerRef.current.setLngLat([lon, lat]);
+    } else {
+      const el = document.createElement('div');
+      el.textContent = '📍';
+      el.style.fontSize = '28px';
+      el.style.cursor = 'pointer';
+      startMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([lon, lat])
+        .addTo(map);
+    }
+  }
+
+  function clearStartPoint() {
+    localStorage.removeItem(DEBUG_START_KEY);
+    startMarkerRef.current?.remove();
+    startMarkerRef.current = null;
+    setStartPoint(null);
+  }
 
   useEffect(() => {
     void Promise.all([api.getPois(), api.getSettings()]).then(([ps, s]) => {
@@ -96,7 +123,26 @@ function PoiOverviewTab() {
       map.addLayer({ id: 'radii-fill', type: 'fill', source: 'radii', paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.14 } });
       map.addLayer({ id: 'radii-line', type: 'line', source: 'radii', paint: { 'line-color': '#d97706', 'line-width': 1 } });
 
+      // Restore previously saved test start point, if any.
+      try {
+        const saved = localStorage.getItem(DEBUG_START_KEY);
+        if (saved) {
+          const p = JSON.parse(saved) as { lat: number; lon: number };
+          placeStartMarker(map, p.lat, p.lon);
+          setStartPoint(p);
+        }
+      } catch { /* ignore malformed value */ }
+
       setReady(true);
+    });
+
+    // Right-click the map to set the test start point.
+    map.on('contextmenu', (e) => {
+      e.preventDefault();
+      const p = { lat: e.lngLat.lat, lon: e.lngLat.lng };
+      localStorage.setItem(DEBUG_START_KEY, JSON.stringify(p));
+      placeStartMarker(map, p.lat, p.lon);
+      setStartPoint(p);
     });
 
     return () => {
@@ -170,6 +216,16 @@ function PoiOverviewTab() {
           <span className='preview-legend-item preview-legend-item--bbox'>Область карты</span>
         )}
         <span className='preview-legend-count'>{pois.length} POI</span>
+        <span className='preview-legend-hint'>
+          {startPoint
+            ? `📍 старт теста: ${startPoint.lat.toFixed(5)}, ${startPoint.lon.toFixed(5)}`
+            : 'Правый клик по карте — задать точку старта теста'}
+        </span>
+        {startPoint && (
+          <button type='button' className='preview-start-clear' onClick={clearStartPoint}>
+            Сбросить
+          </button>
+        )}
       </div>
       <div ref={containerRef} className='preview-poi-map' />
     </div>

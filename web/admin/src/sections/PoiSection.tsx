@@ -289,9 +289,13 @@ interface PendingPlacement {
   lat: number;
 }
 
+// Shared with the player app (same origin): debug joystick start point.
+const DEBUG_START_KEY = 'gs_debug_start';
+
 export function PoiSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const startMarkerRef = useRef<maplibregl.Marker | null>(null);
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [pois, setPois] = useState<Poi[]>([]);
@@ -320,6 +324,20 @@ export function PoiSection() {
     }).catch(() => undefined);
   }, []);
 
+  // Drop or move the test start-point pin (📍) at the given coords.
+  function placeStartMarker(map: maplibregl.Map, lat: number, lon: number) {
+    if (startMarkerRef.current) {
+      startMarkerRef.current.setLngLat([lon, lat]);
+    } else {
+      const el = document.createElement('div');
+      el.textContent = '📍';
+      el.style.fontSize = '28px';
+      startMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([lon, lat])
+        .addTo(map);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Map init (once)
   // ---------------------------------------------------------------------------
@@ -334,6 +352,15 @@ export function PoiSection() {
     mapRef.current = map;
 
     map.on('load', () => {
+      // Restore a previously saved test start point, if any.
+      try {
+        const saved = localStorage.getItem(DEBUG_START_KEY);
+        if (saved) {
+          const p = JSON.parse(saved) as { lat: number; lon: number };
+          placeStartMarker(map, p.lat, p.lon);
+        }
+      } catch { /* ignore malformed value */ }
+
       // bbox outline source/layers
       map.addSource('bbox', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'bbox-fill', type: 'fill', source: 'bbox', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 } });
@@ -354,9 +381,18 @@ export function PoiSection() {
       setPending({ lng: e.lngLat.lng, lat: e.lngLat.lat });
     });
 
+    // Right-click sets the test start point (shared with the player via localStorage).
+    map.on('contextmenu', (e) => {
+      e.preventDefault();
+      const p = { lat: e.lngLat.lat, lon: e.lngLat.lng };
+      localStorage.setItem(DEBUG_START_KEY, JSON.stringify(p));
+      placeStartMarker(map, p.lat, p.lon);
+    });
+
     return () => {
       map.remove();
       mapRef.current = null;
+      startMarkerRef.current = null;
     };
   }, []);
 
@@ -604,6 +640,7 @@ export function PoiSection() {
           onKeyDown={(e) => { if (e.key === 'Enter') void handleRadiusSave(); }}
           style={{ width: 80 }}
         />
+        <span className='bbox-label'>ПКМ по карте — точка старта теста</span>
       </div>
 
       <div className='map-section-body'>

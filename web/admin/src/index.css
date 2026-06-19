@@ -1523,6 +1523,17 @@ select {
   color: #64748b;
 }
 
+.preview-legend-hint {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.preview-start-clear {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
 .preview-poi-map {
   flex: 1;
   min-height: 0;
