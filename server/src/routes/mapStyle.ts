@@ -120,7 +120,7 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
   const meta = buildMeta(settings);
   if (!meta) return null;
 
-  const { bbox, zoomThreshold } = meta;
+  const { bbox } = meta;
 
   // Helper: zoom interpolate expression for line-width
   const widthInterp = (z14: number, z17: number): ExpressionSpec => [
@@ -140,7 +140,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'fill',
       source: 'vector',
       'source-layer': 'landuse',
-      minzoom: zoomThreshold,
       paint: { 'fill-color': '#1a1e2e' },
     } satisfies FillLayer,
 
@@ -150,7 +149,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'fill',
       source: 'vector',
       'source-layer': 'green',
-      minzoom: zoomThreshold,
       paint: { 'fill-color': '#16321f' },
     } satisfies FillLayer,
 
@@ -160,7 +158,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'fill',
       source: 'vector',
       'source-layer': 'water',
-      minzoom: zoomThreshold,
       filter: ['==', ['geometry-type'], 'Polygon'],
       paint: { 'fill-color': '#10243d' },
     } satisfies FillLayer,
@@ -171,7 +168,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'line',
       source: 'vector',
       'source-layer': 'water',
-      minzoom: zoomThreshold,
       filter: ['==', ['geometry-type'], 'LineString'],
       paint: {
         'line-color': '#1d3a5f',
@@ -185,7 +181,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'line',
       source: 'vector',
       'source-layer': 'road',
-      minzoom: zoomThreshold,
       filter: ['==', ['get', 'class'], 'major'],
       paint: {
         'line-color': '#3d4466',
@@ -199,7 +194,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'line',
       source: 'vector',
       'source-layer': 'road',
-      minzoom: zoomThreshold,
       filter: ['==', ['get', 'class'], 'street'],
       paint: {
         'line-color': '#2e3450',
@@ -213,7 +207,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'line',
       source: 'vector',
       'source-layer': 'road',
-      minzoom: zoomThreshold,
       filter: ['==', ['get', 'class'], 'path'],
       paint: {
         'line-color': '#262c44',
@@ -228,7 +221,6 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       type: 'fill-extrusion',
       source: 'vector',
       'source-layer': 'building',
-      minzoom: zoomThreshold,
       paint: {
         'fill-extrusion-color': '#2a3052',
         'fill-extrusion-height': ['get', 'render_height'],
@@ -246,13 +238,10 @@ export function buildStyle(settings: Settings, origin: string): MapStyle | null 
       paint: { 'background-color': '#12121f' },
     } satisfies BackgroundLayer,
 
-    // raster (shown below zoom_threshold)
-    {
-      id: 'raster',
-      type: 'raster',
-      source: 'raster',
-      maxzoom: zoomThreshold,
-    } satisfies RasterLayer,
+    // Raster basemap disabled for now: vector layers render at every zoom.
+    // The raster source + tile pipeline stay in place — re-add a raster layer
+    // here (e.g. { id, type: 'raster', source: 'raster', maxzoom: zoomThreshold })
+    // to bring it back.
 
     ...vectorLayers,
   ];

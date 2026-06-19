@@ -70,17 +70,14 @@ describe('buildStyle', () => {
     expect(buildingLayer!.type).toBe('fill-extrusion');
   });
 
-  it('raster layer has maxzoom equal to zoomThreshold', () => {
+  it('has no raster layer (raster basemap disabled, vector-only)', () => {
     const style = buildStyle(makeSettings({ map_bbox: [...BBOX], zoom_threshold: 15.5 }), ORIGIN)!;
-    const rasterLayer = style.layers.find((l) => l.id === 'raster');
-    expect(rasterLayer).toBeDefined();
-    expect((rasterLayer as { maxzoom?: number }).maxzoom).toBe(15.5);
+    expect(style.layers.find((l) => l.id === 'raster')).toBeUndefined();
   });
 
-  it('all vector-source layers have minzoom equal to zoomThreshold', () => {
-    const threshold = 15.5;
+  it('vector-source layers have no minzoom gate (render at all zooms)', () => {
     const style = buildStyle(
-      makeSettings({ map_bbox: [...BBOX], zoom_threshold: threshold }),
+      makeSettings({ map_bbox: [...BBOX], zoom_threshold: 15.5 }),
       ORIGIN,
     )!;
     const vectorLayers = style.layers.filter(
@@ -88,7 +85,7 @@ describe('buildStyle', () => {
     );
     expect(vectorLayers.length).toBeGreaterThan(0);
     for (const layer of vectorLayers) {
-      expect((layer as { minzoom?: number }).minzoom).toBe(threshold);
+      expect((layer as { minzoom?: number }).minzoom).toBeUndefined();
     }
   });
 
