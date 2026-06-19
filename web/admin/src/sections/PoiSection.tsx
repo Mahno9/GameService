@@ -608,7 +608,11 @@ export function PoiSection() {
 
       <div className='map-section-body'>
         <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-          <div ref={containerRef} className='map-container' />
+          <div
+            ref={containerRef}
+            className='map-container'
+            style={{ position: 'absolute', inset: 0 }}
+          />
 
           {/* Inline add-form floated over the map near pending marker */}
           {pending && (
