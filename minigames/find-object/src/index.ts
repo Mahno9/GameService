@@ -20,10 +20,12 @@ interface ItemConfig {
   scale?: number;
 }
 
+type W = { url: string; weight: number };
+
 interface SoundsConfig {
-  found?: string;
-  win?: string;
-  music?: string;
+  found?: string | W[];
+  win?: string | W[];
+  music?: string | W[];
 }
 
 interface GameConfig {
@@ -263,8 +265,17 @@ export function init(
 
   // --- audio: background music ---
   let music: HTMLAudioElement | null = null;
-  if (config.sounds?.music) {
-    music = new Audio(config.sounds.music);
+  function pickSound(val: string | W[] | undefined): string | undefined {
+    if (!val) return undefined;
+    if (typeof val === 'string') return val;
+    if (!val.length) return undefined;
+    let r = Math.random() * val.reduce((s, v) => s + v.weight, 0);
+    for (const v of val) { r -= v.weight; if (r <= 0) return v.url; }
+    return val[val.length - 1]!.url;
+  }
+  const musicUrl = pickSound(config.sounds?.music);
+  if (musicUrl) {
+    music = new Audio(musicUrl);
     music.loop = true;
   }
   function startMusic(): void {
@@ -275,9 +286,14 @@ export function init(
   }
   const sfxCtx = new AudioContext();
   const sfxBuffers = new Map<string, AudioBuffer>();
-  for (const url of [config.sounds?.found, config.sounds?.win]) {
-    if (url) void fetch(url).then(r => r.arrayBuffer()).then(ab => sfxCtx.decodeAudioData(ab)).then(buf => sfxBuffers.set(url, buf)).catch(() => {});
+  function preloadSfx(val: string | W[] | undefined): void {
+    const urls = typeof val === 'string' ? [val] : (Array.isArray(val) ? val.map(v => v.url) : []);
+    for (const url of urls) {
+      if (url && !sfxBuffers.has(url))
+        void fetch(url).then(r => r.arrayBuffer()).then(ab => sfxCtx.decodeAudioData(ab)).then(buf => sfxBuffers.set(url, buf)).catch(() => {});
+    }
   }
+  for (const v of [config.sounds?.found, config.sounds?.win]) preloadSfx(v);
 
   function playSfx(url: string | undefined): void {
     if (muted || !url) return;
@@ -526,7 +542,7 @@ export function init(
 
   function markFound(it: ItemState): void {
     it.found = true;
-    playSfx(config.sounds?.found);
+    playSfx(pickSound(config.sounds?.found));
     spawnParticles(it);
     it.elImg.classList.add(`${PREFIX}found`);
     const to = setTimeout(() => {
@@ -541,7 +557,7 @@ export function init(
     const remaining = items.some((i) => i.isTarget && !i.found);
     if (!remaining) {
       const to2 = setTimeout(() => {
-        playSfx(config.sounds?.win);
+        playSfx(pickSound(config.sounds?.win));
         const score = scoreForElapsed(thresholds, elapsedSeconds);
         showEnd(score);
         pendingTimeouts.delete(to2);

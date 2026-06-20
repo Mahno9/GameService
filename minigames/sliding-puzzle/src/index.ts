@@ -18,10 +18,12 @@ interface RoundConfig {
   scoreThresholds: ScoreThreshold[];
 }
 
+type W = { url: string; weight: number };
+
 interface SoundsConfig {
-  tileMove?: string;
-  roundWin?: string;
-  gameWin?: string;
+  tileMove?: string | W[];
+  roundWin?: string | W[];
+  gameWin?: string | W[];
 }
 
 interface GameConfig {
@@ -71,10 +73,23 @@ function el<K extends keyof HTMLElementTagNameMap>(
 let audioCtx: AudioContext | null = null;
 const audioBuffers = new Map<string, AudioBuffer>();
 
-function preloadSound(url: string | undefined): void {
-  if (!url || audioBuffers.has(url)) return;
+function preloadSound(val: string | W[] | undefined): void {
+  const urls = typeof val === 'string' ? [val] : (Array.isArray(val) ? val.map(v => v.url) : []);
+  if (!urls.length) return;
   if (!audioCtx) audioCtx = new AudioContext();
-  void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+  for (const url of urls) {
+    if (url && !audioBuffers.has(url))
+      void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+  }
+}
+
+function pickSound(val: string | W[] | undefined): string | undefined {
+  if (!val) return undefined;
+  if (typeof val === 'string') return val;
+  if (!val.length) return undefined;
+  let r = Math.random() * val.reduce((s, v) => s + v.weight, 0);
+  for (const v of val) { r -= v.weight; if (r <= 0) return v.url; }
+  return val[val.length - 1]!.url;
 }
 
 function playSound(url: string | undefined, muted: boolean): void {
@@ -412,7 +427,7 @@ export function init(
     board = applyMove(board, tileIndex);
     syncTilePositions();
 
-    playSound(config.sounds?.tileMove, muted);
+    playSound(pickSound(config.sounds?.tileMove), muted);
 
     if (isSolved(board)) {
       stopTimer();
@@ -426,7 +441,7 @@ export function init(
   // --- round win overlay ---
   function showRoundWin(): void {
     if (done) return;
-    playSound(config.sounds?.roundWin, muted);
+    playSound(pickSound(config.sounds?.roundWin), muted);
 
     // Assemble: remove tile gaps (make borders transparent)
     for (const t of tiles) {
@@ -456,7 +471,7 @@ export function init(
     currentRound++;
     if (currentRound >= rounds.length) {
       // All rounds done
-      playSound(config.sounds?.gameWin, muted);
+      playSound(pickSound(config.sounds?.gameWin), muted);
       fireComplete({ score: totalScore, won: true });
       return;
     }

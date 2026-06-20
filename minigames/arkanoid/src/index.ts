@@ -27,13 +27,15 @@ interface LevelConfigRaw {
   ballAcceleration?: number;
 }
 
+type W = { url: string; weight: number };
+
 interface SoundsConfig {
-  bounce?: string;
-  blockBreak?: string;
-  bonus?: string;
-  ballLost?: string;
-  win?: string;
-  lose?: string;
+  bounce?: string | W[];
+  blockBreak?: string | W[];
+  bonus?: string | W[];
+  ballLost?: string | W[];
+  win?: string | W[];
+  lose?: string | W[];
 }
 
 interface GameConfig {
@@ -41,7 +43,7 @@ interface GameConfig {
   paddleSpeedScale?: number;
   levels?: LevelConfigRaw[];
   sounds?: SoundsConfig;
-  music?: string;
+  music?: string | W[];
   muted?: boolean;
 }
 
@@ -281,9 +283,25 @@ export function init(
 
   const audioCtx = new AudioContext();
   const audioBuffers = new Map<string, AudioBuffer>();
-  for (const url of Object.values(sounds)) {
-    if (url) void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+
+  function pickSound(val: string | W[] | undefined): string | undefined {
+    if (!val) return undefined;
+    if (typeof val === 'string') return val;
+    if (!val.length) return undefined;
+    let r = Math.random() * val.reduce((s, v) => s + v.weight, 0);
+    for (const v of val) { r -= v.weight; if (r <= 0) return v.url; }
+    return val[val.length - 1]!.url;
   }
+
+  function preloadVal(val: string | W[] | undefined): void {
+    const urls = typeof val === 'string' ? [val] : (Array.isArray(val) ? val.map(v => v.url) : []);
+    for (const url of urls) {
+      if (url && !audioBuffers.has(url))
+        void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+    }
+  }
+
+  for (const val of Object.values(sounds)) preloadVal(val);
 
   function playSound(url: string | undefined): void {
     if (muted || !url) return;
@@ -297,8 +315,9 @@ export function init(
   }
 
   function startMusic(): void {
-    if (!config.music) return;
-    music = new Audio(config.music);
+    const musicUrl = pickSound(config.music);
+    if (!musicUrl) return;
+    music = new Audio(musicUrl);
     music.loop = true;
     music.volume = 0.4;
     if (!muted) music.play().catch(() => {});
@@ -524,21 +543,21 @@ export function init(
         case 'bounceWall':
         case 'bouncePaddle':
         case 'shieldBounce':
-          playSound(sounds.bounce);
+          playSound(pickSound(sounds.bounce));
           break;
         case 'blockBreak':
-          playSound(sounds.bounce);
-          playSound(sounds.blockBreak);
+          playSound(pickSound(sounds.bounce));
+          playSound(pickSound(sounds.blockBreak));
           break;
         case 'bonusCollect':
-          playSound(sounds.bonus);
+          playSound(pickSound(sounds.bonus));
           break;
         case 'ballLost':
-          playSound(sounds.ballLost);
+          playSound(pickSound(sounds.ballLost));
           break;
         case 'gameOver':
           updateHud();
-          playSound(sounds.lose);
+          playSound(pickSound(sounds.lose));
           showOverlay('Игра окончена', `Счёт: ${state.score}`, 'Завершить', () =>
             fireComplete({ score: state.score, won: false }),
           );
@@ -546,7 +565,7 @@ export function init(
         case 'levelClear':
           updateHud();
           if (levelIndex + 1 >= levels.length) {
-            playSound(sounds.win);
+            playSound(pickSound(sounds.win));
             showOverlay('Победа!', `Счёт: ${state.score}`, 'Завершить', () =>
               fireComplete({ score: state.score, won: true }),
             );

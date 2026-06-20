@@ -22,11 +22,13 @@ interface BackgroundLayer {
   scrollSpeed: number;
 }
 
+type W = { url: string; weight: number };
+
 interface SoundsConfig {
-  jump?: string;
-  land?: string;
-  hit?: string;
-  gameOver?: string;
+  jump?: string | W[];
+  land?: string | W[];
+  hit?: string | W[];
+  gameOver?: string | W[];
 }
 
 interface GameConfig {
@@ -36,7 +38,7 @@ interface GameConfig {
   backgroundLayers?: BackgroundLayer[];
   obstacleTypes: ObstacleType[];
   sounds?: SoundsConfig;
-  music?: string;
+  music?: string | W[];
   muted?: boolean;
 }
 
@@ -66,10 +68,23 @@ const OVERCOME_SPRITE_MS = 600; // how long to show overcomeImage
 let audioCtx: AudioContext | null = null;
 const audioBuffers = new Map<string, AudioBuffer>();
 
-function preloadSound(url: string | undefined): void {
-  if (!url || audioBuffers.has(url)) return;
+function preloadSound(val: string | W[] | undefined): void {
+  const urls = typeof val === 'string' ? [val] : (Array.isArray(val) ? val.map(v => v.url) : []);
+  if (!urls.length) return;
   if (!audioCtx) audioCtx = new AudioContext();
-  void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+  for (const url of urls) {
+    if (url && !audioBuffers.has(url))
+      void fetch(url).then(r => r.arrayBuffer()).then(ab => audioCtx!.decodeAudioData(ab)).then(buf => audioBuffers.set(url, buf)).catch(() => {});
+  }
+}
+
+function pickSound(val: string | W[] | undefined): string | undefined {
+  if (!val) return undefined;
+  if (typeof val === 'string') return val;
+  if (!val.length) return undefined;
+  let r = Math.random() * val.reduce((s, v) => s + v.weight, 0);
+  for (const v of val) { r -= v.weight; if (r <= 0) return v.url; }
+  return val[val.length - 1]!.url;
 }
 
 function playSound(url: string | undefined, muted: boolean): void {
@@ -436,7 +451,7 @@ export function init(
     e.preventDefault();
     pointerDownTime = Date.now();
     jump(state);
-    playSound(config.sounds?.jump, muted);
+    playSound(pickSound(config.sounds?.jump), muted);
 
     // Schedule crouch if held
     crouchTimer = setTimeout(() => {
@@ -526,13 +541,13 @@ export function init(
     // Handle events
     for (const evt of events) {
       if (evt.type === 'hit') {
-        playSound(config.sounds?.hit, muted);
+        playSound(pickSound(config.sounds?.hit), muted);
         if (state.gameOver) {
-          playSound(config.sounds?.gameOver, muted);
+          playSound(pickSound(config.sounds?.gameOver), muted);
         }
       } else if (evt.type === 'overcome') {
         if (evt.overcomeSound) {
-          playSound(evt.overcomeSound, muted);
+          playSound(pickSound(evt.overcomeSound), muted);
         }
         if (evt.overcomeImage) {
           const img = overcomeImages.get(evt.obstacleTypeIndex);
@@ -549,7 +564,7 @@ export function init(
 
     // Landing sound
     if (!wasGrounded && state.grounded) {
-      playSound(config.sounds?.land, muted);
+      playSound(pickSound(config.sounds?.land), muted);
     }
     wasGrounded = state.grounded;
 
@@ -575,8 +590,9 @@ export function init(
 
   // --- music ---
   function startMusic(): void {
-    if (!config.music || muted) return;
-    musicAudio = new Audio(config.music);
+    const musicUrl = pickSound(config.music);
+    if (!musicUrl || muted) return;
+    musicAudio = new Audio(musicUrl);
     musicAudio.loop = true;
     musicAudio.muted = muted;
     musicAudio.play().catch(() => {});

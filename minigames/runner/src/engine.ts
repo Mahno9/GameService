@@ -32,13 +32,15 @@ export interface SpeedPoint {
   inTangent?: number;
 }
 
+export type WeightedAudio = { url: string; weight: number };
+
 export interface ObstacleType {
   width: number;
   height: number;
   weight: number;
   image?: string;
   overcomeImage?: string;
-  overcomeSound?: string;
+  overcomeSound?: string | WeightedAudio[];
 }
 
 export interface Obstacle {
@@ -68,7 +70,7 @@ export interface GameState {
 
 export type GameEvent =
   | { type: 'hit'; obstacleId: number }
-  | { type: 'overcome'; obstacleId: number; obstacleTypeIndex: number; overcomeSound?: string; overcomeImage?: string };
+  | { type: 'overcome'; obstacleId: number; obstacleTypeIndex: number; overcomeSound?: string | WeightedAudio[]; overcomeImage?: string };
 
 // ---------------------------------------------------------------------------
 // speedAt — cubic Hermite interpolation, clamped to endpoints.
