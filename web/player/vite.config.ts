@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const backend = `http://localhost:${process.env.PORT ?? 8081}`;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -60,10 +62,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8081',
-      '/tiles': 'http://localhost:8081',
-      '/assets-store': 'http://localhost:8081',
-      '/minigames': 'http://localhost:8081',
+      '/api': backend,
+      '/tiles': backend,
+      '/assets-store': backend,
+      '/minigames': backend,
     },
   },
   build: {

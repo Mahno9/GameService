@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const backend = `http://localhost:${process.env.PORT ?? 8081}`;
+
 export default defineConfig({
   plugins: [react()],
   base: '/admin/',
@@ -8,10 +10,10 @@ export default defineConfig({
     host: true,
     port: 5174,
     proxy: {
-      '/api': 'http://localhost:8081',
-      '/tiles': 'http://localhost:8081',
-      '/assets-store': 'http://localhost:8081',
-      '/minigames': 'http://localhost:8081',
+      '/api': backend,
+      '/tiles': backend,
+      '/assets-store': backend,
+      '/minigames': backend,
     },
   },
   build: {

@@ -20,6 +20,16 @@ export async function buildApp() {
 
   app.get('/api/health', async () => ({ status: 'ok', uptime: process.uptime() }));
 
+  // Allow cross-origin access to public read-only assets (tiles, stored files,
+  // minigames). Needed in dev where player (5173) and admin (5174) are on
+  // different origins from the backend (8081). Harmless in prod (same-origin).
+  app.addHook('onSend', async (req, reply) => {
+    const { url } = req;
+    if (url.startsWith('/tiles/') || url.startsWith('/assets-store/') || url.startsWith('/minigames/')) {
+      void reply.header('Access-Control-Allow-Origin', '*');
+    }
+  });
+
   await app.register(fastifyMultipart, {
     limits: { fileSize: 30 * 1024 * 1024, files: 200 },
     // tile uploads encode the tile path (vector/z/x/y.mvt) in the filename
