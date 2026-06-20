@@ -101,6 +101,7 @@
     "scoreThresholds": {
       "type": "array",
       "title": "Пороги баллов по времени",
+      "x-type": "curve",
       "items": {
         "type": "object",
         "required": ["maxSeconds", "points"],
