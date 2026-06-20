@@ -26,6 +26,7 @@ RUN npm prune --omit=dev
 
 # Runtime stage
 FROM node:24-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production \
     DATA_DIR=/data \
     PORT=8080
