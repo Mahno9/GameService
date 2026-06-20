@@ -102,7 +102,7 @@ interface AssetWidgetProps {
   hidePreview?: boolean;
 }
 
-function AssetUploadWidget({ kind, value, onChange, hidePreview = false }: AssetWidgetProps) {
+export function AssetUploadWidget({ kind, value, onChange, hidePreview = false }: AssetWidgetProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState<'idle' | 'init' | 'rec'>('idle');
