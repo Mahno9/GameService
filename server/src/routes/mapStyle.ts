@@ -116,7 +116,7 @@ export function buildMeta(settings: Settings): MapMeta | null {
   };
 }
 
-export function buildStyle(settings: Settings, origin: string): MapStyle | null {
+export function buildStyle(settings: Settings, origin: string = ''): MapStyle | null {
   const meta = buildMeta(settings);
   if (!meta) return null;
 
@@ -280,9 +280,8 @@ export async function mapStyleRoutes(app: FastifyInstance) {
     return meta;
   });
 
-  app.get('/api/map/style.json', async (req, reply) => {
-    const origin = `${req.protocol}://${req.headers.host as string}`;
-    const style = buildStyle(getAllSettings(getDb()), origin);
+  app.get('/api/map/style.json', async (_req, reply) => {
+    const style = buildStyle(getAllSettings(getDb()));
     if (!style) return reply.code(409).send({ error: 'map not configured' });
     void reply.header('Cache-Control', 'no-cache');
     return style;
