@@ -34,7 +34,7 @@
           },
           "backgroundFit": {
             "type": "string",
-            "title": "Расположение фона",
+            "title": "Режим фона",
             "enum": ["cover", "contain", "fill-x", "fill-y", "center", "tile"],
             "x-enumLabels": {
               "cover": "Растянуть (на весь экран)",
@@ -45,6 +45,13 @@
               "tile": "Мозаика"
             },
             "default": "cover"
+          },
+          "backgroundScale": {
+            "type": "number",
+            "title": "Масштаб фона",
+            "default": 1,
+            "minimum": 0.1,
+            "maximum": 10
           },
           "totalBlocks": {
             "type": "integer",

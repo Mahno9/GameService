@@ -28,6 +28,7 @@ export interface ValuedBlockType {
 export interface LevelConfig {
   backgroundImage?: string;
   backgroundFit?: string;
+  backgroundScale?: number;
   backgroundOffset?: { x?: number; y?: number };
   totalBlocks: number;
   valuedBlockTypes: ValuedBlockType[];

@@ -435,13 +435,13 @@ const BG_SIZE: Record<string, string> = {
 };
 
 interface BgPreviewBoxProps {
-  url: string; fit: string;
+  url: string; fit: string; scale: number;
   offset: { x: number; y: number };
   onOffsetChange: (o: { x: number; y: number }) => void;
   width: number; height: number; label: string;
 }
 
-function BgPreviewBox({ url, fit, offset, onOffsetChange, width, height, label }: BgPreviewBoxProps) {
+function BgPreviewBox({ url, fit, scale, offset, onOffsetChange, width, height, label }: BgPreviewBoxProps) {
   const [grabbing, setGrabbing] = useState(false);
   const drag = useRef<{ clientX: number; clientY: number; ox: number; oy: number } | null>(null);
 
@@ -457,33 +457,24 @@ function BgPreviewBox({ url, fit, offset, onOffsetChange, width, height, label }
 
   return (
     <div className='sf-bg-preview-item'>
-      <div
-        title='Перетащите для смещения изображения. Двойной клик — сброс.'
-        style={{
-          width, height, flexShrink: 0, overflow: 'hidden',
+      <div style={{ width, height, flexShrink: 0, overflow: 'hidden', border: '1px solid #3a3a6a', borderRadius: 4, cursor: grabbing ? 'grabbing' : 'grab', userSelect: 'none' }}
+        title='Перетащите для смещения. Двойной клик — сброс.'
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setGrabbing(true); drag.current = { clientX: e.clientX, clientY: e.clientY, ox: offset.x, oy: offset.y }; }}
+        onPointerMove={(e) => { if (!drag.current) return; const dx = e.clientX - drag.current.clientX; const dy = e.clientY - drag.current.clientY; onOffsetChange({ x: drag.current.ox + (dx / width) * 100, y: drag.current.oy + (dy / height) * 100 }); }}
+        onPointerUp={() => { setGrabbing(false); drag.current = null; }}
+        onPointerCancel={() => { setGrabbing(false); drag.current = null; }}
+        onDoubleClick={() => onOffsetChange({ x: 0, y: 0 })}
+      >
+        <div style={{
+          width: '100%', height: '100%',
           backgroundImage: `url(${url})`,
           backgroundSize: BG_SIZE[fit] ?? '100% 100%',
           backgroundRepeat: fit === 'tile' ? 'repeat' : 'no-repeat',
           backgroundPosition: bgPos,
-          border: '1px solid #3a3a6a', borderRadius: 4,
-          cursor: grabbing ? 'grabbing' : 'grab',
-          userSelect: 'none',
-        }}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          setGrabbing(true);
-          drag.current = { clientX: e.clientX, clientY: e.clientY, ox: offset.x, oy: offset.y };
-        }}
-        onPointerMove={(e) => {
-          if (!drag.current) return;
-          const dx = e.clientX - drag.current.clientX;
-          const dy = e.clientY - drag.current.clientY;
-          onOffsetChange({ x: drag.current.ox + (dx / width) * 100, y: drag.current.oy + (dy / height) * 100 });
-        }}
-        onPointerUp={() => { setGrabbing(false); drag.current = null; }}
-        onPointerCancel={() => { setGrabbing(false); drag.current = null; }}
-        onDoubleClick={() => onOffsetChange({ x: 0, y: 0 })}
-      />
+          transform: scale !== 1 ? `scale(${scale})` : undefined,
+          transformOrigin: 'center center',
+        }} />
+      </div>
       <span>{label}</span>
     </div>
   );
@@ -512,14 +503,15 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
     ? (() => {
         const url = obj.backgroundImage as string;
         const fit = (obj.backgroundFit as string | undefined) ?? 'cover';
+        const scale = (obj.backgroundScale as number | undefined) ?? 1;
         const offset = (obj.backgroundOffset as { x?: number; y?: number } | undefined) ?? {};
         const off = { x: offset.x ?? 0, y: offset.y ?? 0 };
         const handleOffset = (o: { x: number; y: number }) => setKey('backgroundOffset', o);
         return (
           <div key='__bg-preview' className='sf-field--full sf-bg-preview'>
             <div className='sf-bg-preview-row'>
-              <BgPreviewBox url={url} fit={fit} offset={off} onOffsetChange={handleOffset} width={120} height={213} label='Мобильный' />
-              <BgPreviewBox url={url} fit={fit} offset={off} onOffsetChange={handleOffset} width={300} height={170} label='Десктопный' />
+              <BgPreviewBox url={url} fit={fit} scale={scale} offset={off} onOffsetChange={handleOffset} width={120} height={213} label='Мобильный' />
+              <BgPreviewBox url={url} fit={fit} scale={scale} offset={off} onOffsetChange={handleOffset} width={300} height={170} label='Десктопный' />
             </div>
           </div>
         );
@@ -537,7 +529,7 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
         label={sub.title ?? key}
       />
     );
-    if (key === 'backgroundFit' && bgPreview) fields.push(bgPreview);
+    if (key === 'backgroundScale' && bgPreview) fields.push(bgPreview);
   }
 
   // Root object (no label) → plain grid; named groups → collapsible <details>.

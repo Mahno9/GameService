@@ -19,6 +19,7 @@ import {
 interface LevelConfigRaw {
   backgroundImage?: string;
   backgroundFit?: string;
+  backgroundScale?: number;
   backgroundOffset?: { x?: number; y?: number };
   totalBlocks?: number;
   valuedBlockTypes?: Partial<ValuedBlockType>[];
@@ -120,6 +121,9 @@ function normalizeLevel(raw: LevelConfigRaw): LevelConfig {
   }
   if (typeof raw.backgroundFit === 'string') {
     level.backgroundFit = raw.backgroundFit;
+  }
+  if (typeof raw.backgroundScale === 'number') {
+    level.backgroundScale = Math.max(0.1, raw.backgroundScale);
   }
   if (raw.backgroundOffset && typeof raw.backgroundOffset === 'object') {
     level.backgroundOffset = {
@@ -574,25 +578,30 @@ export function init(
       if (img.complete && img.naturalWidth > 0) {
         ctx.globalAlpha = 0.35;
         const fit = state.level.backgroundFit ?? 'cover';
+        const sc = state.level.backgroundScale ?? 1;
         const cw = canvas.width, ch = canvas.height;
         const iw = img.naturalWidth, ih = img.naturalHeight;
         const offX = ((state.level.backgroundOffset?.x ?? 0) / 100) * cw;
         const offY = ((state.level.backgroundOffset?.y ?? 0) / 100) * ch;
         if (fit === 'contain') {
-          const scale = Math.min(cw / iw, ch / ih);
-          const dw = iw * scale, dh = ih * scale;
+          const base = Math.min(cw / iw, ch / ih) * sc;
+          const dw = iw * base, dh = ih * base;
           ctx.drawImage(img, (cw - dw) / 2 + offX, (ch - dh) / 2 + offY, dw, dh);
         } else if (fit === 'fill-x') {
-          const dh = ih * (cw / iw);
-          ctx.drawImage(img, 0, (ch - dh) / 2 + offY, cw, dh);
+          const dw = cw * sc, dh = ih * (cw / iw) * sc;
+          ctx.drawImage(img, (cw - dw) / 2 + offX, (ch - dh) / 2 + offY, dw, dh);
         } else if (fit === 'fill-y') {
-          const dw = iw * (ch / ih);
-          ctx.drawImage(img, (cw - dw) / 2 + offX, 0, dw, ch);
+          const dw = iw * (ch / ih) * sc, dh = ch * sc;
+          ctx.drawImage(img, (cw - dw) / 2 + offX, (ch - dh) / 2 + offY, dw, dh);
         } else if (fit === 'center') {
-          ctx.drawImage(img, (cw - iw) / 2 + offX, (ch - ih) / 2 + offY, iw, ih);
+          const dw = iw * sc, dh = ih * sc;
+          ctx.drawImage(img, (cw - dw) / 2 + offX, (ch - dh) / 2 + offY, dw, dh);
         } else if (fit === 'tile') {
           const pat = ctx.createPattern(img, 'repeat');
-          if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, cw, ch); }
+          if (pat) {
+            if (sc !== 1) pat.setTransform(new DOMMatrix().scaleSelf(sc));
+            ctx.fillStyle = pat; ctx.fillRect(0, 0, cw, ch);
+          }
         } else {
           ctx.drawImage(img, 0, 0, cw, ch);
         }
