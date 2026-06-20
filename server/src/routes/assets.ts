@@ -1,10 +1,15 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import fastifyStatic from '@fastify/static';
 import type { FastifyInstance } from 'fastify';
 import { nanoid } from 'nanoid';
 import { paths } from '../config.js';
 import { getDb } from '../db/connection.js';
+
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // MIME → kind + ext mapping
@@ -15,6 +20,7 @@ type AssetKind = 'image' | 'audio' | 'gif';
 interface MimeMeta {
   kind: AssetKind;
   ext: string;
+  transcode?: true; // convert to mp3 via ffmpeg before storing
 }
 
 const MIME_MAP: Record<string, MimeMeta> = {
@@ -30,7 +36,27 @@ const MIME_MAP: Record<string, MimeMeta> = {
   'audio/wav': { kind: 'audio', ext: 'wav' },
   'audio/webm': { kind: 'audio', ext: 'webm' },
   'audio/webm;codecs=opus': { kind: 'audio', ext: 'webm' },
+  'audio/flac': { kind: 'audio', ext: 'flac', transcode: true },
+  'audio/x-flac': { kind: 'audio', ext: 'flac', transcode: true },
 };
+
+async function transcodeToMp3(buf: Buffer, srcExt: string): Promise<Buffer> {
+  const tmpIn = path.join(os.tmpdir(), `gs-in-${nanoid(8)}.${srcExt}`);
+  const tmpOut = path.join(os.tmpdir(), `gs-out-${nanoid(8)}.mp3`);
+  try {
+    fs.writeFileSync(tmpIn, buf);
+    await execFileAsync('ffmpeg', [
+      '-i', tmpIn,
+      '-vn',           // drop any embedded artwork
+      '-b:a', '128k',
+      '-y', tmpOut,
+    ]);
+    return fs.readFileSync(tmpOut);
+  } finally {
+    try { fs.unlinkSync(tmpIn); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Row / DTO types
@@ -106,10 +132,24 @@ export async function assetsRoutes(app: FastifyInstance) {
           continue;
         }
 
+        let buf = await part.toBuffer();
+        let storedMime = mime;
+        let storedMeta = meta;
+
+        if (meta.transcode) {
+          try {
+            buf = await transcodeToMp3(buf, meta.ext);
+            storedMeta = { kind: 'audio', ext: 'mp3' };
+            storedMime = 'audio/mpeg';
+          } catch {
+            rejected.push(`${part.filename} (ffmpeg unavailable)`);
+            continue;
+          }
+        }
+
         const id = nanoid(10);
-        const filename = `${id}.${meta.ext}`;
+        const filename = `${id}.${storedMeta.ext}`;
         const dest = path.join(assetsDir, filename);
-        const buf = await part.toBuffer();
 
         fs.writeFileSync(dest, buf);
 
@@ -117,7 +157,7 @@ export async function assetsRoutes(app: FastifyInstance) {
         db.prepare(
           `INSERT INTO assets (id, kind, mime, ext, original_name, size_bytes, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        ).run(id, meta.kind, mime, meta.ext, part.filename, buf.length, now);
+        ).run(id, storedMeta.kind, storedMime, storedMeta.ext, part.filename, buf.length, now);
 
         const row = db
           .prepare('SELECT * FROM assets WHERE id = ?')
