@@ -40,15 +40,16 @@ const MIME_MAP: Record<string, MimeMeta> = {
   'audio/x-flac': { kind: 'audio', ext: 'flac', transcode: true },
 };
 
-async function transcodeToMp3(buf: Buffer, srcExt: string): Promise<Buffer> {
+async function transcodeToOgg(buf: Buffer, srcExt: string): Promise<Buffer> {
   const tmpIn = path.join(os.tmpdir(), `gs-in-${nanoid(8)}.${srcExt}`);
-  const tmpOut = path.join(os.tmpdir(), `gs-out-${nanoid(8)}.mp3`);
+  const tmpOut = path.join(os.tmpdir(), `gs-out-${nanoid(8)}.ogg`);
   try {
     fs.writeFileSync(tmpIn, buf);
     await execFileAsync('ffmpeg', [
       '-i', tmpIn,
-      '-vn',           // drop any embedded artwork
-      '-b:a', '128k',
+      '-vn',                    // drop any embedded artwork
+      '-codec:a', 'libvorbis',
+      '-q:a', '5',              // VBR quality ~160 kbps
       '-y', tmpOut,
     ]);
     return fs.readFileSync(tmpOut);
@@ -138,9 +139,9 @@ export async function assetsRoutes(app: FastifyInstance) {
 
         if (meta.transcode) {
           try {
-            buf = await transcodeToMp3(buf, meta.ext);
-            storedMeta = { kind: 'audio', ext: 'mp3' };
-            storedMime = 'audio/mpeg';
+            buf = await transcodeToOgg(buf, meta.ext);
+            storedMeta = { kind: 'audio', ext: 'ogg' };
+            storedMime = 'audio/ogg';
           } catch {
             rejected.push(`${part.filename} (ffmpeg unavailable)`);
             continue;
