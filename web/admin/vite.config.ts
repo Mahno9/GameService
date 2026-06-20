@@ -11,6 +11,7 @@ export default defineConfig({
       '/api': 'http://localhost:8081',
       '/tiles': 'http://localhost:8081',
       '/assets-store': 'http://localhost:8081',
+      '/minigames': 'http://localhost:8081',
     },
   },
   build: {
