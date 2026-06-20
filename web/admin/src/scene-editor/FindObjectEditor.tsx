@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import { IMAGE_ACCEPT } from '../asset-accept';
 
 // ---------------------------------------------------------------------------
 // Config shape (mirrors minigames/find-object/schema.json)
@@ -224,7 +225,7 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
           {bgBusy ? 'Загрузка…' : backgroundImage ? 'Заменить фон' : '+ Загрузить фон'}
           <input
             type='file'
-            accept='image/*'
+            accept={IMAGE_ACCEPT}
             hidden
             disabled={bgBusy}
             onChange={(e) => void handleBackgroundUpload(e.target.files?.[0] ?? undefined)}
@@ -593,7 +594,7 @@ function ItemList({ title, kind, items, selection, busy, ordered, onSelect, onAd
         {busy ? 'Загрузка…' : '+ Загрузить'}
         <input
           type='file'
-          accept='image/*'
+          accept={IMAGE_ACCEPT}
           hidden
           disabled={busy}
           onChange={(e) => onAdd(e.target.files?.[0] ?? undefined)}

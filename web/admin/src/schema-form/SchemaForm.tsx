@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { api } from '../api';
+import { IMAGE_ACCEPT } from '../asset-accept';
 import { CurveEditor } from './CurveEditor';
 import { DrawModal } from './DrawModal';
 import { AssetPickerModal } from './AssetPickerModal';
@@ -115,7 +116,7 @@ function AssetUploadWidget({ kind, value, onChange, hidePreview = false }: Asset
   // existing assets that match this field's type (images & gifs are interchangeable)
   const pickKinds: Asset['kind'][] = kind === 'audio' ? ['audio'] : ['image', 'gif'];
 
-  const accept = kind === 'audio' ? 'audio/*' : kind === 'gif' ? 'image/gif,image/*' : 'image/*';
+  const accept = kind === 'audio' ? 'audio/*' : IMAGE_ACCEPT;
 
   async function handleFile(file: File | undefined) {
     if (!file) return;

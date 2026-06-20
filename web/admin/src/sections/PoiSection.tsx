@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { api, type Poi, type Settings } from '../api';
+import { IMAGE_ACCEPT } from '../asset-accept';
 import { bboxToPolygon, circlePolygon } from '../lib/geo';
 
 // ---------------------------------------------------------------------------
@@ -236,7 +237,7 @@ function EditPoiPanel({ poi, allPois, onSave, onDelete, onClose }: EditPanelProp
             {imageUploading ? 'Загрузка…' : 'Загрузить изображение'}
             <input
               type='file'
-              accept='image/*'
+              accept={IMAGE_ACCEPT}
               style={{ display: 'none' }}
               disabled={imageUploading}
               onChange={(e) => {

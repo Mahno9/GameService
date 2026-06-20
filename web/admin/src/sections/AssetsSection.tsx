@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, type Asset, type Settings } from '../api';
+import { MEDIA_ACCEPT } from '../asset-accept';
 import { MultiAudioWidget, normalizeAudio, type WeightedAudio } from '../schema-form/SchemaForm';
 
 // ---------------------------------------------------------------------------
@@ -153,7 +154,7 @@ export function AssetsSection() {
             ref={fileInputRef}
             type='file'
             multiple
-            accept='image/*,audio/*,.gif'
+            accept={MEDIA_ACCEPT}
             style={{ display: 'none' }}
             disabled={uploading}
             onChange={(e) => {
