@@ -80,6 +80,36 @@ describe('speedAt', () => {
   });
 });
 
+describe('speedAt — Hermite tangents', () => {
+  it('flat tangents ease the start (sample near start stays below the linear line)', () => {
+    const curve: SpeedPoint[] = [
+      { distance: 0, speed: 0, outTangent: 0 },
+      { distance: 100, speed: 10, inTangent: 0 },
+    ];
+    // Zero tangents → symmetric ease: midpoint still averages, but the start is flat.
+    expect(speedAt(curve, 50)).toBeCloseTo(5, 5);
+    expect(speedAt(curve, 10)).toBeLessThan(1); // linear would be 1.0
+  });
+
+  it('missing tangents fall back to linear', () => {
+    const curve: SpeedPoint[] = [
+      { distance: 0, speed: 0 },
+      { distance: 100, speed: 10 },
+    ];
+    expect(speedAt(curve, 25)).toBeCloseTo(2.5, 5);
+    expect(speedAt(curve, 75)).toBeCloseTo(7.5, 5);
+  });
+
+  it('tangents matching the segment slope reproduce a straight line', () => {
+    const curve: SpeedPoint[] = [
+      { distance: 0, speed: 0, outTangent: 0.1 },
+      { distance: 100, speed: 10, inTangent: 0.1 },
+    ];
+    expect(speedAt(curve, 50)).toBeCloseTo(5, 5);
+    expect(speedAt(curve, 25)).toBeCloseTo(2.5, 5);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // pickWeighted
 // ---------------------------------------------------------------------------

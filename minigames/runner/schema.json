@@ -18,7 +18,9 @@
         "type": "object",
         "properties": {
           "distance": { "type": "number" },
-          "speed": { "type": "number" }
+          "speed": { "type": "number" },
+          "inTangent": { "type": "number" },
+          "outTangent": { "type": "number" }
         },
         "required": ["distance", "speed"]
       },

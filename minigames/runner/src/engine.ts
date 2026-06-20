@@ -26,6 +26,10 @@ export const MAX_GAP_BASE = 500;      // maximum distance between obstacles (bas
 export interface SpeedPoint {
   distance: number;
   speed: number;
+  /** Slope (Δspeed/Δdistance) leaving this point toward the next. */
+  outTangent?: number;
+  /** Slope arriving at this point from the previous. */
+  inTangent?: number;
 }
 
 export interface ObstacleType {
@@ -67,7 +71,10 @@ export type GameEvent =
   | { type: 'overcome'; obstacleId: number; obstacleTypeIndex: number; overcomeSound?: string; overcomeImage?: string };
 
 // ---------------------------------------------------------------------------
-// speedAt — piecewise-linear interpolation, clamped to endpoints
+// speedAt — cubic Hermite interpolation, clamped to endpoints.
+// Each point may carry in/out tangents (slopes); a missing tangent falls back
+// to the segment's linear slope, so curves without tangents stay piecewise-linear.
+// (Same math is used by the admin CurveEditor preview — keep them in sync.)
 // ---------------------------------------------------------------------------
 
 export function speedAt(curve: SpeedPoint[], distance: number): number {
@@ -87,8 +94,20 @@ export function speedAt(curve: SpeedPoint[], distance: number): number {
     const a = curve[i] as SpeedPoint;
     const b = curve[i + 1] as SpeedPoint;
     if (distance >= a.distance && distance <= b.distance) {
-      const t = (distance - a.distance) / (b.distance - a.distance);
-      return a.speed + t * (b.speed - a.speed);
+      const dx = b.distance - a.distance;
+      if (dx <= 0) return b.speed;
+      const t = (distance - a.distance) / dx;
+      const linear = (b.speed - a.speed) / dx;
+      const m0 = a.outTangent ?? linear; // slope leaving a
+      const m1 = b.inTangent ?? linear;  // slope arriving at b
+      // Hermite basis (tangents scaled by dx to map slope → segment space)
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = t3 - 2 * t2 + t;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = t3 - t2;
+      return h00 * a.speed + h10 * dx * m0 + h01 * b.speed + h11 * dx * m1;
     }
   }
 

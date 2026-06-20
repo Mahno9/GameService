@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
 import { api } from '../api';
+import { CurveEditor } from './CurveEditor';
+import { DrawModal } from './DrawModal';
+import { AssetPickerModal } from './AssetPickerModal';
+import { LiveNumberInput } from './LiveNumberInput';
+import type { Asset } from '../api';
 
 // ---------------------------------------------------------------------------
 // WAV encoder — used to re-encode trimmed mic recordings
@@ -97,9 +102,15 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState<'idle' | 'init' | 'rec'>('idle');
+  const [drawing, setDrawing] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const uploadSeqRef = useRef(0);
+
+  // existing assets that match this field's type (images & gifs are interchangeable)
+  const pickKinds: Asset['kind'][] = kind === 'audio' ? ['audio'] : ['image', 'gif'];
 
   const accept = kind === 'audio' ? 'audio/*' : kind === 'gif' ? 'image/gif,image/*' : 'image/*';
 
@@ -176,24 +187,74 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
 
   return (
     <div className='sf-asset'>
-      <input
-        type='file'
-        accept={accept}
-        disabled={busy}
-        onChange={(e) => void handleFile(e.target.files?.[0] ?? undefined)}
-      />
-      {kind === 'audio' && (
+      <div className='sf-asset-row'>
+        <input
+          ref={fileRef}
+          type='file'
+          accept={accept}
+          hidden
+          onChange={(e) => void handleFile(e.target.files?.[0] ?? undefined)}
+        />
         <button
           type='button'
-          className={`sf-record-btn${recording === 'rec' ? ' sf-record-btn--active' : ''}`}
-          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); void startRecording(); }}
-          onPointerUp={stopRecording}
-          onPointerLeave={stopRecording}
-          disabled={busy || recording === 'init'}
+          className='sf-pick-btn'
+          title='Загрузить файл с устройства'
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
         >
-          {recording === 'init' ? '⏳ Инициализация…' : recording === 'rec' ? '⏹ Запись… (отпустите)' : '🎙 Записать с микрофона'}
+          Файл
         </button>
-      )}
+        <button
+          type='button'
+          className='sf-pick-btn'
+          title='Выбрать из уже загруженных ассетов'
+          onClick={() => setPicking(true)}
+          disabled={busy}
+        >
+          Ассеты
+        </button>
+        {kind === 'audio' && (
+          <button
+            type='button'
+            className={`sf-icon-btn${recording === 'rec' ? ' sf-icon-btn--active' : ''}`}
+            title={
+              recording === 'init'
+                ? 'Инициализация микрофона…'
+                : recording === 'rec'
+                  ? 'Идёт запись — отпустите, чтобы остановить'
+                  : 'Записать с микрофона (удерживайте)'
+            }
+            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); void startRecording(); }}
+            onPointerUp={stopRecording}
+            onPointerLeave={stopRecording}
+            disabled={busy || recording === 'init'}
+          >
+            🎙
+          </button>
+        )}
+        {(kind === 'image' || kind === 'gif') && (
+          <button
+            type='button'
+            className='sf-icon-btn'
+            title='Нарисовать изображение'
+            onClick={() => setDrawing(true)}
+            disabled={busy}
+          >
+            🖌
+          </button>
+        )}
+        {value && (
+          <button
+            type='button'
+            className='sf-icon-btn'
+            title='Убрать'
+            onClick={() => onChange('')}
+            disabled={busy}
+          >
+            ✕
+          </button>
+        )}
+      </div>
       {busy && <span className='sf-asset-hint'>Загрузка…</span>}
       {error && <span className='sf-asset-error'>{error}</span>}
       {value && (kind === 'audio' ? (
@@ -201,11 +262,44 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
       ) : (
         <img className='sf-asset-preview' src={value} alt='' />
       ))}
-      {value && (
-        <button type='button' className='sf-asset-clear' onClick={() => onChange('')} disabled={busy}>
-          Убрать
-        </button>
+      {drawing && (
+        <DrawModal
+          onClose={() => setDrawing(false)}
+          onDone={(file) => { setDrawing(false); void handleFile(file); }}
+        />
       )}
+      {picking && (
+        <AssetPickerModal
+          kinds={pickKinds}
+          onPick={(url) => { setPicking(false); onChange(url); }}
+          onClose={() => setPicking(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Color field — native swatch + raw CSS-string text input
+// ---------------------------------------------------------------------------
+
+function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const isHex = /^#[0-9a-fA-F]{6}$/.test(value);
+  return (
+    <div className='sf-color'>
+      <input
+        type='color'
+        value={isHex ? value : '#000000'}
+        onChange={(e) => onChange(e.target.value)}
+        title='Выбрать цвет'
+      />
+      <input
+        type='text'
+        className='sf-color-text'
+        value={value}
+        placeholder='#rrggbb или CSS-цвет'
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }
@@ -246,7 +340,7 @@ function Field({ schema, value, onChange, label }: FieldProps) {
   if (xType === 'asset:image' || xType === 'asset:gif' || xType === 'asset:audio') {
     const kind = xType === 'asset:audio' ? 'audio' : xType === 'asset:gif' ? 'gif' : 'image';
     return (
-      <label className='sf-field'>
+      <label className='sf-field sf-field--full'>
         {title && <span className='sf-label'>{title}</span>}
         <AssetUploadWidget
           kind={kind}
@@ -254,6 +348,26 @@ function Field({ schema, value, onChange, label }: FieldProps) {
           onChange={onChange}
         />
       </label>
+    );
+  }
+
+  // x-type color → swatch + text
+  if (xType === 'color') {
+    return (
+      <label className='sf-field'>
+        {title && <span className='sf-label'>{title}</span>}
+        <ColorField value={typeof value === 'string' ? value : ''} onChange={onChange} />
+      </label>
+    );
+  }
+
+  // x-type curve → graphical curve editor
+  if (xType === 'curve') {
+    return (
+      <div className='sf-field sf-field--full'>
+        {title && <span className='sf-label'>{title}</span>}
+        <CurveEditor schema={schema} value={value} onChange={onChange} />
+      </div>
     );
   }
 
@@ -278,25 +392,16 @@ function Field({ schema, value, onChange, label }: FieldProps) {
 
     case 'integer':
     case 'number': {
-      const current = value === undefined ? schema.default : value;
       return (
         <label className='sf-field'>
           {title && <span className='sf-label'>{title}</span>}
-          <input
-            type='number'
-            value={current === undefined || current === null ? '' : String(current)}
+          <LiveNumberInput
+            value={typeof value === 'number' ? value : undefined}
+            fallback={typeof schema.default === 'number' ? schema.default : undefined}
+            integer={schema.type === 'integer'}
             min={schema.minimum}
             max={schema.maximum}
-            step={schema.type === 'integer' ? 1 : 'any'}
-            onChange={(e) => {
-              const raw = e.target.value;
-              if (raw === '') {
-                onChange(undefined);
-                return;
-              }
-              const num = schema.type === 'integer' ? parseInt(raw, 10) : parseFloat(raw);
-              onChange(Number.isNaN(num) ? undefined : num);
-            }}
+            onCommit={onChange}
           />
         </label>
       );
@@ -337,19 +442,26 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
     onChange({ ...objRef.current, [key]: next });
   }
 
+  const fields = Object.entries(props).map(([key, sub]) => (
+    <Field
+      key={key}
+      schema={sub}
+      value={obj[key]}
+      onChange={(next) => setKey(key, next)}
+      label={sub.title ?? key}
+    />
+  ));
+
+  // Root object (no label) → plain grid; named groups → collapsible <details>.
+  // ponytail: native <details>, swap for an animated panel only if design demands transitions.
+  if (!label) {
+    return <div className='sf-grid'>{fields}</div>;
+  }
   return (
-    <fieldset className='sf-fieldset'>
-      {label && <legend className='sf-legend'>{label}</legend>}
-      {Object.entries(props).map(([key, sub]) => (
-        <Field
-          key={key}
-          schema={sub}
-          value={obj[key]}
-          onChange={(next) => setKey(key, next)}
-          label={sub.title ?? key}
-        />
-      ))}
-    </fieldset>
+    <details className='sf-group sf-field--full' open>
+      <summary className='sf-group-summary'>{label}</summary>
+      <div className='sf-grid'>{fields}</div>
+    </details>
   );
 }
 
@@ -375,9 +487,8 @@ function ArrayField({ schema, value, onChange, label }: FieldProps) {
     onChange(items.filter((_, i) => i !== index));
   }
 
-  return (
-    <fieldset className='sf-fieldset sf-array'>
-      {label && <legend className='sf-legend'>{label}</legend>}
+  const body = (
+    <div className='sf-array'>
       {items.map((item, index) => (
         <div className='sf-array-row' key={index}>
           <div className='sf-array-item'>
@@ -400,7 +511,18 @@ function ArrayField({ schema, value, onChange, label }: FieldProps) {
       <button type='button' className='sf-array-add' onClick={addItem}>
         + Добавить
       </button>
-    </fieldset>
+    </div>
+  );
+
+  // Unlabeled array (e.g. an array item's own list) → plain; named block → collapsible.
+  if (!label) return <div className='sf-field--full'>{body}</div>;
+  return (
+    <details className='sf-group sf-field--full' open>
+      <summary className='sf-group-summary'>
+        {label} <span className='sf-count'>({items.length})</span>
+      </summary>
+      {body}
+    </details>
   );
 }
 

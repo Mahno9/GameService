@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, type Minigame, type Poi } from '../api';
 import { SchemaForm, type Schema } from '../schema-form/SchemaForm';
 import { FindObjectEditor } from '../scene-editor/FindObjectEditor';
+import { showToast } from '../toast';
 
 // Properties of the find-object schema that are managed by the visual
 // FindObjectEditor instead of the generic SchemaForm.
@@ -69,7 +70,6 @@ interface TestRunProps {
 }
 
 function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
-  const [banner, setBanner] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,12 +98,13 @@ function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
             {
               onComplete: (result) => {
                 console.log('[test-run] onComplete', result);
-                setBanner(`Завершено: ${result.won ? 'победа' : 'поражение'}, баллы: ${result.score}`);
                 cleanup();
+                onClose();
               },
               onExit: () => {
                 console.log('[test-run] onExit');
                 cleanup();
+                onClose();
               },
             },
           );
@@ -120,20 +121,8 @@ function TestRunOverlay({ entryUrl, config, onClose }: TestRunProps) {
     };
   }, [entryUrl, config]);
 
-  // Close only via the ✕, and confirm while the game is still running (a result
-  // banner means it finished — nothing left to lose, so close immediately).
-  function requestClose() {
-    if (banner !== null || window.confirm('Выйти из игры? Весь прогресс будет потерян.')) {
-      onClose();
-    }
-  }
-
   return (
     <div className='test-run-overlay'>
-      <button className='test-run-close' title='Закрыть' onClick={requestClose}>
-        ✕
-      </button>
-      {banner && <div className='test-run-banner'>{banner}</div>}
       {error && <div className='test-run-error'>{error}</div>}
       <div id='sf-test-container' className='test-run-container' />
     </div>
@@ -201,13 +190,27 @@ function ConfigModal({
     };
   }, [minigame.schemaUrl]);
 
-  async function handleSave() {
+  // Esc closes the settings window (a nested DrawModal intercepts Esc first via
+  // a capture-phase handler that preventDefaults, so it won't reach here).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !e.defaultPrevented) onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  async function handleSave(close: boolean) {
     setSaving(true);
     setError(null);
     try {
       await onSave(config, replayable);
+      showToast('Сохранено');
+      if (close) onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Ошибка сохранения');
+      const msg = e instanceof Error ? e.message : 'Ошибка сохранения';
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setSaving(false);
     }
@@ -217,7 +220,7 @@ function ConfigModal({
     <>
       <div className='modal-overlay' onClick={onClose}>
         <div
-          className={`modal-card${isFindObject ? ' modal-card--wide' : ''}`}
+          className={`modal-card modal-card--config${isFindObject ? ' modal-card--wide' : ''}`}
           onClick={(e) => e.stopPropagation()}
         >
         <div className='modal-header'>
@@ -256,8 +259,15 @@ function ConfigModal({
             ▶ Запустить в тестовом режиме
           </button>
           <div className='modal-actions-spacer' />
-          <button onClick={() => void handleSave()} disabled={saving || loading}>
+          <button onClick={() => void handleSave(false)} disabled={saving || loading}>
             Сохранить
+          </button>
+          <button
+            className='modal-save-primary'
+            onClick={() => void handleSave(true)}
+            disabled={saving || loading}
+          >
+            Сохранить и закрыть
           </button>
           <button onClick={onClose}>Отмена</button>
         </div>
@@ -323,7 +333,6 @@ export function MinigamesSection() {
         setMinigames((prev) =>
           prev.map((m) => (m.id === mg.id ? { ...m, defaultConfig: config } : m)),
         );
-        setModal(null);
       },
     });
   }
@@ -349,7 +358,6 @@ export function MinigamesSection() {
         onSave: async (config, replayable) => {
           await api.updatePoi(poi.id, { config: diffTop(defaults, config), replayable });
           setPois((prev) => prev.map((p) => (p.id === poi.id ? { ...p, replayable } : p)));
-          setModal(null);
         },
       });
     } catch (e) {

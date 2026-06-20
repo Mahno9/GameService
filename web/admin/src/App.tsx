@@ -8,6 +8,7 @@ import { DebugSection } from './sections/DebugSection';
 import { LeaderboardSection } from './sections/LeaderboardSection';
 import { AssetsSection } from './sections/AssetsSection';
 import { PreviewSection } from './sections/PreviewSection';
+import { ToastHost } from './toast';
 
 type Section = 'map' | 'pois' | 'minigames' | 'debug' | 'leaderboard' | 'assets' | 'preview';
 
@@ -36,6 +37,7 @@ export function App() {
   if (!authed) return <LoginScreen onLogin={() => setAuthed(true)} />;
 
   return (
+    <>
     <div className="layout">
       <nav className="sidebar">
         <h2>AdminPanel</h2>
@@ -67,5 +69,7 @@ export function App() {
         {section === 'preview' && <PreviewSection />}
       </main>
     </div>
+    <ToastHost />
+    </>
   );
 }

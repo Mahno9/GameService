@@ -38,7 +38,8 @@
               "properties": {
                 "color": {
                   "type": "string",
-                  "title": "Цвет блока (CSS color)"
+                  "title": "Цвет блока (CSS color)",
+                  "x-type": "color"
                 },
                 "percent": {
                   "type": "number",
