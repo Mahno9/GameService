@@ -29,11 +29,11 @@ const OSM_STYLE: maplibregl.StyleSpecification = {
 // ---------------------------------------------------------------------------
 
 function PlayerPreviewTab() {
-  // In dev the player may run on a different port (e.g. 5174 vs 5173).
-  // We point to the same origin which works in production; in dev we show
-  // an absolute URL hint so the developer can copy it manually.
-  const previewUrl = '/?preview=1';
-  const absoluteUrl = `${window.location.protocol}//${window.location.host}${previewUrl}`;
+  // ponytail: dev admin=5174, player=5173; prod both served from same origin under /admin/
+  const absoluteUrl = import.meta.env.DEV
+    ? `${window.location.protocol}//${window.location.hostname}:5173/?preview=1`
+    : `${window.location.protocol}//${window.location.host}/?preview=1`;
+  const previewUrl = absoluteUrl;
 
   return (
     <div className='preview-player-tab'>

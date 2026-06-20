@@ -60,9 +60,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/tiles': 'http://localhost:8080',
-      '/assets-store': 'http://localhost:8080',
+      '/api': 'http://localhost:8081',
+      '/tiles': 'http://localhost:8081',
+      '/assets-store': 'http://localhost:8081',
+      '/minigames': 'http://localhost:8081',
     },
   },
   build: {

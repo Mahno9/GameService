@@ -11,8 +11,10 @@ for /f "usebackq tokens=1,* delims==" %%a in ("docker\.env") do (
 
 echo Starting GameService dev...
 start "GameService Server" cmd /k "npm run dev:server"
+start "GameService Player" cmd /k "npm run dev:player"
 start "GameService Admin"  cmd /k "npm run dev:admin -- --host"
 start "Cloudflared"        cmd /k "cloudflared tunnel --no-autoupdate run --token %CLOUDFLARE_TUNNEL_TOKEN%"
 echo.
 echo Server:   http://localhost:%PORT%
+echo Player:   http://localhost:5173
 echo Admin UI: http://localhost:5174
