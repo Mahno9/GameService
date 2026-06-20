@@ -8,7 +8,7 @@ export interface Settings {
   joystick_speed_mps: number;
   zoom_threshold: number;
   map_bbox: Bbox | null;
-  ui_click_sound_url: string | null;
+  ui_click_sound_url: { url: string; weight: number }[] | string | null;
 }
 
 export interface MapMeta {
