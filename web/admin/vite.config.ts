@@ -5,11 +5,12 @@ export default defineConfig({
   plugins: [react()],
   base: '/admin/',
   server: {
+    host: true,
     port: 5174,
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/tiles': 'http://localhost:8080',
-      '/assets-store': 'http://localhost:8080',
+      '/api': 'http://localhost:8081',
+      '/tiles': 'http://localhost:8081',
+      '/assets-store': 'http://localhost:8081',
     },
   },
   build: {
