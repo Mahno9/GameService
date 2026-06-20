@@ -1,21 +1,21 @@
-/**
- * Lightweight UI click-sound module for meta controls.
- * Call initUiSound(url) once after settings load.
- * Call playClick() on any interactive meta element.
- * Call setUiMuted(bool) to sync with global mute state.
- */
+type WeightedAudio = { url: string; weight: number };
 
-let audio: HTMLAudioElement | null = null;
+let pool: Array<{ audio: HTMLAudioElement; weight: number }> = [];
 let muted = false;
 
-/** Initialise (or replace) the click sound from a server URL. Pass null to disable. */
-export function initUiSound(url: string | null): void {
-  if (!url) {
-    audio = null;
-    return;
-  }
-  audio = new Audio(url);
-  audio.preload = 'auto';
+function toList(val: string | WeightedAudio[] | null): WeightedAudio[] {
+  if (!val) return [];
+  if (typeof val === 'string') return val ? [{ url: val, weight: 1 }] : [];
+  return val;
+}
+
+/** Initialise (or replace) the click-sound pool from a server value. Pass null to disable. */
+export function initUiSound(val: string | WeightedAudio[] | null): void {
+  pool = toList(val).map(({ url, weight }) => {
+    const audio = new Audio(url);
+    audio.preload = 'auto';
+    return { audio, weight };
+  });
 }
 
 /** Sync muted state with localState.prefs.muted. */
@@ -23,12 +23,12 @@ export function setUiMuted(value: boolean): void {
   muted = value;
 }
 
-/** Play the click sound once (no-op when muted or no URL configured). */
+/** Play one randomly-weighted click sound (no-op when muted or pool is empty). */
 export function playClick(): void {
-  if (muted || !audio) return;
-  // Clone the node so overlapping clicks don't cancel each other.
-  const clone = audio.cloneNode() as HTMLAudioElement;
-  clone.play().catch(() => {
-    // Autoplay policy or missing file — ignore silently.
-  });
+  if (muted || !pool.length) return;
+  const total = pool.reduce((s, v) => s + v.weight, 0);
+  let r = Math.random() * total;
+  const item = pool.find((v) => (r -= v.weight) <= 0) ?? pool[pool.length - 1]!;
+  const clone = item.audio.cloneNode() as HTMLAudioElement;
+  clone.play().catch(() => {});
 }
