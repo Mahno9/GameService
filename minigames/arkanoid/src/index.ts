@@ -18,6 +18,8 @@ import {
 
 interface LevelConfigRaw {
   backgroundImage?: string;
+  backgroundFit?: string;
+  backgroundOffset?: { x?: number; y?: number };
   totalBlocks?: number;
   valuedBlockTypes?: Partial<ValuedBlockType>[];
   ballSpeed?: number;
@@ -35,6 +37,7 @@ interface SoundsConfig {
 
 interface GameConfig {
   lives?: number;
+  paddleSpeedScale?: number;
   levels?: LevelConfigRaw[];
   sounds?: SoundsConfig;
   music?: string;
@@ -115,6 +118,15 @@ function normalizeLevel(raw: LevelConfigRaw): LevelConfig {
   if (typeof raw.backgroundImage === 'string') {
     level.backgroundImage = raw.backgroundImage;
   }
+  if (typeof raw.backgroundFit === 'string') {
+    level.backgroundFit = raw.backgroundFit;
+  }
+  if (raw.backgroundOffset && typeof raw.backgroundOffset === 'object') {
+    level.backgroundOffset = {
+      x: num(raw.backgroundOffset.x, 0),
+      y: num(raw.backgroundOffset.y, 0),
+    };
+  }
   return level;
 }
 
@@ -149,7 +161,7 @@ const STYLES = `
   flex-shrink: 0;
 }
 .${PREFIX}hud-left { display: flex; gap: 14px; align-items: center; }
-.${PREFIX}hud-lives { color: #ff6b8a; font-weight: 600; }
+.${PREFIX}hud-lives { color: #ff6b8a; font-weight: 600; font-size: 20px; }
 .${PREFIX}hud-score { font-variant-numeric: tabular-nums; color: #ffd166; }
 .${PREFIX}hud-level { color: #a0c4ff; }
 .${PREFIX}hud-controls { display: flex; gap: 6px; }
@@ -229,6 +241,7 @@ export function init(
 
   // --- config normalization ---
   const lives = Math.max(1, Math.floor(num(config.lives, 3)));
+  const paddleSpeedScale = Math.max(0.2, num(config.paddleSpeedScale, 1.5));
   const rawLevels = config.levels ?? [];
   const levels: LevelConfig[] = rawLevels.length > 0 ? rawLevels.map(normalizeLevel) : [normalizeLevel({})];
   const sounds = config.sounds ?? {};
@@ -447,7 +460,7 @@ export function init(
     const dxPx = e.clientX - lastPointerX;
     lastPointerX = e.clientX;
     const rect = canvas.getBoundingClientRect();
-    const dxNorm = rect.width > 0 ? dxPx / rect.width : 0;
+    const dxNorm = rect.width > 0 ? (dxPx / rect.width) * paddleSpeedScale : 0;
     state.paddleX = clampPaddle(state.paddleX + dxNorm, state.paddleHalfW);
   }
   function onPointerUp(): void {
@@ -560,7 +573,29 @@ export function init(
       const img = getBg(bgUrl);
       if (img.complete && img.naturalWidth > 0) {
         ctx.globalAlpha = 0.35;
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const fit = state.level.backgroundFit ?? 'cover';
+        const cw = canvas.width, ch = canvas.height;
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        const offX = ((state.level.backgroundOffset?.x ?? 0) / 100) * cw;
+        const offY = ((state.level.backgroundOffset?.y ?? 0) / 100) * ch;
+        if (fit === 'contain') {
+          const scale = Math.min(cw / iw, ch / ih);
+          const dw = iw * scale, dh = ih * scale;
+          ctx.drawImage(img, (cw - dw) / 2 + offX, (ch - dh) / 2 + offY, dw, dh);
+        } else if (fit === 'fill-x') {
+          const dh = ih * (cw / iw);
+          ctx.drawImage(img, 0, (ch - dh) / 2 + offY, cw, dh);
+        } else if (fit === 'fill-y') {
+          const dw = iw * (ch / ih);
+          ctx.drawImage(img, (cw - dw) / 2 + offX, 0, dw, ch);
+        } else if (fit === 'center') {
+          ctx.drawImage(img, (cw - iw) / 2 + offX, (ch - ih) / 2 + offY, iw, ih);
+        } else if (fit === 'tile') {
+          const pat = ctx.createPattern(img, 'repeat');
+          if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, cw, ch); }
+        } else {
+          ctx.drawImage(img, 0, 0, cw, ch);
+        }
         ctx.globalAlpha = 1;
       }
     }
@@ -610,7 +645,7 @@ export function init(
     // Projectiles.
     ctx.fillStyle = '#ff5252';
     for (const p of state.projectiles) {
-      ctx.fillRect(fx(p.x) - 1.5, fy(p.y) - 8, 3, 12);
+      ctx.fillRect(fx(p.x) - 2.5, fy(p.y) - 10, 5, 18);
     }
 
     // Bonus capsules.

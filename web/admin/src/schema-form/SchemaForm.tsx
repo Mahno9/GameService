@@ -43,10 +43,12 @@ export interface Schema {
   minimum?: number;
   maximum?: number;
   enum?: (string | number)[];
+  'x-enumLabels'?: Record<string, string>;
   properties?: Record<string, Schema>;
   required?: string[];
   items?: Schema;
   'x-type'?: string;
+  'x-bg-preview'?: boolean;
 }
 
 type Json = unknown;
@@ -257,11 +259,9 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
       </div>
       {busy && <span className='sf-asset-hint'>Загрузка…</span>}
       {error && <span className='sf-asset-error'>{error}</span>}
-      {value && (kind === 'audio' ? (
+      {value && kind === 'audio' && (
         <audio className='sf-asset-preview' controls src={value} />
-      ) : (
-        <img className='sf-asset-preview' src={value} alt='' />
-      ))}
+      )}
       {drawing && (
         <DrawModal
           onClose={() => setDrawing(false)}
@@ -314,6 +314,7 @@ function Field({ schema, value, onChange, label }: FieldProps) {
   // enum → select
   if (schema.enum) {
     const current = value === undefined ? schema.default : value;
+    const enumLabels = schema['x-enumLabels'] ?? {};
     return (
       <label className='sf-field'>
         {title && <span className='sf-label'>{title}</span>}
@@ -327,7 +328,7 @@ function Field({ schema, value, onChange, label }: FieldProps) {
         >
           {schema.enum.map((opt) => (
             <option key={String(opt)} value={String(opt)}>
-              {String(opt)}
+              {enumLabels[String(opt)] ?? String(opt)}
             </option>
           ))}
         </select>
@@ -340,14 +341,14 @@ function Field({ schema, value, onChange, label }: FieldProps) {
   if (xType === 'asset:image' || xType === 'asset:gif' || xType === 'asset:audio') {
     const kind = xType === 'asset:audio' ? 'audio' : xType === 'asset:gif' ? 'gif' : 'image';
     return (
-      <label className='sf-field sf-field--full'>
+      <div className='sf-field sf-field--full'>
         {title && <span className='sf-label'>{title}</span>}
         <AssetUploadWidget
           kind={kind}
           value={typeof value === 'string' ? value : ''}
           onChange={onChange}
         />
-      </label>
+      </div>
     );
   }
 
@@ -424,6 +425,71 @@ function Field({ schema, value, onChange, label }: FieldProps) {
 }
 
 // ---------------------------------------------------------------------------
+// Draggable background preview box
+// ---------------------------------------------------------------------------
+
+const BG_SIZE: Record<string, string> = {
+  cover: '100% 100%', contain: 'contain',
+  'fill-x': '100% auto', 'fill-y': 'auto 100%',
+  center: 'auto', tile: 'auto',
+};
+
+interface BgPreviewBoxProps {
+  url: string; fit: string;
+  offset: { x: number; y: number };
+  onOffsetChange: (o: { x: number; y: number }) => void;
+  width: number; height: number; label: string;
+}
+
+function BgPreviewBox({ url, fit, offset, onOffsetChange, width, height, label }: BgPreviewBoxProps) {
+  const [grabbing, setGrabbing] = useState(false);
+  const drag = useRef<{ clientX: number; clientY: number; ox: number; oy: number } | null>(null);
+
+  const px = (offset.x / 100) * width;
+  const py = (offset.y / 100) * height;
+  const bgPos = fit === 'fill-x'
+    ? `center calc(50% + ${py}px)`
+    : fit === 'fill-y'
+      ? `calc(50% + ${px}px) center`
+      : fit === 'tile'
+        ? `${px}px ${py}px`
+        : `calc(50% + ${px}px) calc(50% + ${py}px)`;
+
+  return (
+    <div className='sf-bg-preview-item'>
+      <div
+        title='Перетащите для смещения изображения. Двойной клик — сброс.'
+        style={{
+          width, height, flexShrink: 0, overflow: 'hidden',
+          backgroundImage: `url(${url})`,
+          backgroundSize: BG_SIZE[fit] ?? '100% 100%',
+          backgroundRepeat: fit === 'tile' ? 'repeat' : 'no-repeat',
+          backgroundPosition: bgPos,
+          border: '1px solid #3a3a6a', borderRadius: 4,
+          cursor: grabbing ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        }}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setGrabbing(true);
+          drag.current = { clientX: e.clientX, clientY: e.clientY, ox: offset.x, oy: offset.y };
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return;
+          const dx = e.clientX - drag.current.clientX;
+          const dy = e.clientY - drag.current.clientY;
+          onOffsetChange({ x: drag.current.ox + (dx / width) * 100, y: drag.current.oy + (dy / height) * 100 });
+        }}
+        onPointerUp={() => { setGrabbing(false); drag.current = null; }}
+        onPointerCancel={() => { setGrabbing(false); drag.current = null; }}
+        onDoubleClick={() => onOffsetChange({ x: 0, y: 0 })}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Object field → fieldset of properties
 // ---------------------------------------------------------------------------
 
@@ -442,15 +508,37 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
     onChange({ ...objRef.current, [key]: next });
   }
 
-  const fields = Object.entries(props).map(([key, sub]) => (
-    <Field
-      key={key}
-      schema={sub}
-      value={obj[key]}
-      onChange={(next) => setKey(key, next)}
-      label={sub.title ?? key}
-    />
-  ));
+  const bgPreview = schema['x-bg-preview'] && typeof obj.backgroundImage === 'string' && obj.backgroundImage
+    ? (() => {
+        const url = obj.backgroundImage as string;
+        const fit = (obj.backgroundFit as string | undefined) ?? 'cover';
+        const offset = (obj.backgroundOffset as { x?: number; y?: number } | undefined) ?? {};
+        const off = { x: offset.x ?? 0, y: offset.y ?? 0 };
+        const handleOffset = (o: { x: number; y: number }) => setKey('backgroundOffset', o);
+        return (
+          <div key='__bg-preview' className='sf-field--full sf-bg-preview'>
+            <div className='sf-bg-preview-row'>
+              <BgPreviewBox url={url} fit={fit} offset={off} onOffsetChange={handleOffset} width={120} height={213} label='Мобильный' />
+              <BgPreviewBox url={url} fit={fit} offset={off} onOffsetChange={handleOffset} width={300} height={170} label='Десктопный' />
+            </div>
+          </div>
+        );
+      })()
+    : null;
+
+  const fields: JSX.Element[] = [];
+  for (const [key, sub] of Object.entries(props)) {
+    fields.push(
+      <Field
+        key={key}
+        schema={sub}
+        value={obj[key]}
+        onChange={(next) => setKey(key, next)}
+        label={sub.title ?? key}
+      />
+    );
+    if (key === 'backgroundFit' && bgPreview) fields.push(bgPreview);
+  }
 
   // Root object (no label) → plain grid; named groups → collapsible <details>.
   // ponytail: native <details>, swap for an animated panel only if design demands transitions.

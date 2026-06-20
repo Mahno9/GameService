@@ -11,17 +11,40 @@
       "default": 3,
       "minimum": 1
     },
+    "paddleSpeedScale": {
+      "type": "number",
+      "title": "Чувствительность платформы (×)",
+      "description": "1 = 1:1 с пальцем, 2 = платформа движется вдвое быстрее",
+      "default": 1.5,
+      "minimum": 0.2,
+      "maximum": 5
+    },
     "levels": {
       "type": "array",
       "title": "Уровни",
       "items": {
         "type": "object",
         "required": ["totalBlocks", "valuedBlockTypes"],
+        "x-bg-preview": true,
         "properties": {
           "backgroundImage": {
             "type": "string",
             "title": "Фон за блоками",
             "x-type": "asset:image"
+          },
+          "backgroundFit": {
+            "type": "string",
+            "title": "Расположение фона",
+            "enum": ["cover", "contain", "fill-x", "fill-y", "center", "tile"],
+            "x-enumLabels": {
+              "cover": "Растянуть (на весь экран)",
+              "contain": "Вписать целиком",
+              "fill-x": "По ширине (без искажений)",
+              "fill-y": "По высоте (без искажений)",
+              "center": "По центру (оригинальный размер)",
+              "tile": "Мозаика"
+            },
+            "default": "cover"
           },
           "totalBlocks": {
             "type": "integer",

@@ -27,6 +27,8 @@ export interface ValuedBlockType {
 
 export interface LevelConfig {
   backgroundImage?: string;
+  backgroundFit?: string;
+  backgroundOffset?: { x?: number; y?: number };
   totalBlocks: number;
   valuedBlockTypes: ValuedBlockType[];
   ballSpeed: number;
@@ -51,8 +53,8 @@ export const FIELD = {
 
 export const BONUS = {
   dropChance: 0.25,
-  capsuleHalfW: 0.035,
-  capsuleHalfH: 0.02,
+  capsuleHalfW: 0.055,
+  capsuleHalfH: 0.032,
   fallSpeed: 0.008,
   durationLong: 10, // seconds (expand / shrink / laser / slowTime)
   expandFactor: 1.5,

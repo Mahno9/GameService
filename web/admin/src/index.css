@@ -960,6 +960,26 @@ select {
   grid-column: 1 / -1;
 }
 
+.sf-bg-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+.sf-bg-preview-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.sf-bg-preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
 .sf-field {
   display: flex;
   flex-direction: column;
