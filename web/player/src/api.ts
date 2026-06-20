@@ -9,6 +9,7 @@ export interface Settings {
   zoom_threshold: number;
   map_bbox: Bbox | null;
   ui_click_sound_url: { url: string; weight: number }[] | string | null;
+  debug_start: { lat: number; lon: number } | null;
 }
 
 export interface MapMeta {

@@ -8,9 +8,6 @@ import { bboxToPolygon, circlePolygon } from '../lib/geo';
 // OSM style (same as PoiSection)
 // ---------------------------------------------------------------------------
 
-// Shared with the player app (same origin): debug joystick start point.
-const DEBUG_START_KEY = 'gs_debug_start';
-
 const OSM_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -89,7 +86,7 @@ function PoiOverviewTab() {
   }
 
   function clearStartPoint() {
-    localStorage.removeItem(DEBUG_START_KEY);
+    void api.updateSettings({ debug_start: null }).catch(() => undefined);
     startMarkerRef.current?.remove();
     startMarkerRef.current = null;
     setStartPoint(null);
@@ -123,26 +120,16 @@ function PoiOverviewTab() {
       map.addLayer({ id: 'radii-fill', type: 'fill', source: 'radii', paint: { 'fill-color': '#f59e0b', 'fill-opacity': 0.14 } });
       map.addLayer({ id: 'radii-line', type: 'line', source: 'radii', paint: { 'line-color': '#d97706', 'line-width': 1 } });
 
-      // Restore previously saved test start point, if any.
-      try {
-        const saved = localStorage.getItem(DEBUG_START_KEY);
-        if (saved) {
-          const p = JSON.parse(saved) as { lat: number; lon: number };
-          placeStartMarker(map, p.lat, p.lon);
-          setStartPoint(p);
-        }
-      } catch { /* ignore malformed value */ }
-
       setReady(true);
     });
 
-    // Right-click the map to set the test start point.
+    // Right-click the map to set the test start point (persisted server-side).
     map.on('contextmenu', (e) => {
       e.preventDefault();
       const p = { lat: e.lngLat.lat, lon: e.lngLat.lng };
-      localStorage.setItem(DEBUG_START_KEY, JSON.stringify(p));
       placeStartMarker(map, p.lat, p.lon);
       setStartPoint(p);
+      void api.updateSettings({ debug_start: p }).catch(() => undefined);
     });
 
     return () => {
@@ -193,6 +180,12 @@ function PoiOverviewTab() {
         .setLngLat([poi.lon, poi.lat])
         .addTo(map);
       markersRef.current.push(marker);
+    }
+
+    // Test start-point pin
+    if (settings.debug_start) {
+      placeStartMarker(map, settings.debug_start.lat, settings.debug_start.lon);
+      setStartPoint(settings.debug_start);
     }
 
     // Fit to POIs if no bbox

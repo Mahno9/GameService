@@ -290,9 +290,6 @@ interface PendingPlacement {
   lat: number;
 }
 
-// Shared with the player app (same origin): debug joystick start point.
-const DEBUG_START_KEY = 'gs_debug_start';
-
 export function PoiSection() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -353,15 +350,6 @@ export function PoiSection() {
     mapRef.current = map;
 
     map.on('load', () => {
-      // Restore a previously saved test start point, if any.
-      try {
-        const saved = localStorage.getItem(DEBUG_START_KEY);
-        if (saved) {
-          const p = JSON.parse(saved) as { lat: number; lon: number };
-          placeStartMarker(map, p.lat, p.lon);
-        }
-      } catch { /* ignore malformed value */ }
-
       // bbox outline source/layers
       map.addSource('bbox', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'bbox-fill', type: 'fill', source: 'bbox', paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.08 } });
@@ -382,12 +370,13 @@ export function PoiSection() {
       setPending({ lng: e.lngLat.lng, lat: e.lngLat.lat });
     });
 
-    // Right-click sets the test start point (shared with the player via localStorage).
+    // Right-click sets the test start point (persisted server-side, read by the player).
     map.on('contextmenu', (e) => {
       e.preventDefault();
       const p = { lat: e.lngLat.lat, lon: e.lngLat.lng };
-      localStorage.setItem(DEBUG_START_KEY, JSON.stringify(p));
       placeStartMarker(map, p.lat, p.lon);
+      void api.updateSettings({ debug_start: p }).catch(() => undefined);
+      setSettings((prev) => (prev ? { ...prev, debug_start: p } : prev));
     });
 
     return () => {
@@ -420,6 +409,18 @@ export function PoiSection() {
       map.once('load', applyBbox);
     }
   }, [settings?.map_bbox]);
+
+  // ---------------------------------------------------------------------------
+  // Restore the test start-point pin when settings arrive
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const map = mapRef.current;
+    const start = settings?.debug_start;
+    if (!map || !start) return;
+    const place = () => placeStartMarker(map, start.lat, start.lon);
+    if (map.isStyleLoaded()) place();
+    else map.once('load', place);
+  }, [settings?.debug_start]);
 
   // ---------------------------------------------------------------------------
   // Redraw trigger-radius circles when pois or radius change

@@ -9,6 +9,7 @@ export const SETTING_KEYS = [
   'zoom_threshold',
   'map_bbox',
   'ui_click_sound_url',
+  'debug_start',
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];

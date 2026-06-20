@@ -28,16 +28,6 @@ function bboxCenter([w, s, e, n]: Bbox): { lat: number; lon: number } {
   return { lat: (s + n) / 2, lon: (w + e) / 2 };
 }
 
-// Debug start point set from the admin POI overview tab (same-origin localStorage).
-function readDebugStart(): { lat: number; lon: number } | null {
-  try {
-    const v = localStorage.getItem('gs_debug_start');
-    return v ? (JSON.parse(v) as { lat: number; lon: number }) : null;
-  } catch {
-    return null;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -131,7 +121,7 @@ export function App() {
 
         // In debug mode, start the joystick at the point set from the admin
         // POI overview tab, if one was saved; otherwise the map center.
-        const debugStart = settings.debug_mode ? readDebugStart() : null;
+        const debugStart = settings.debug_mode ? (settings.debug_start ?? null) : null;
 
         setBoot({
           settings: {
