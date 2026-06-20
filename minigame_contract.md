@@ -181,7 +181,7 @@ export function init(container, config, callbacks) {
 | Значение `x-type` | Виджет |
 |-------------------|--------|
 | `asset:image` | Загрузчик изображения, возвращает URL |
-| `asset:audio` | Загрузчик аудиофайла, возвращает URL |
+| `asset:audio` | Список взвешенных аудиофайлов; значение в конфиге — `WeightedAudio[]` (`{ url: string; weight: number }[]`). При воспроизведении используй `pickSound(val)` для случайного выбора пропорционально весу. Одиночный `string` (legacy) также поддерживается. |
 | `asset:gif` | Загрузчик GIF или изображения, возвращает URL |
 | `curve` | Редактор кривой (список точек `{x, y}`) |
 | `weighted-list` | Список с весами (массив `{value, weight}`) |
