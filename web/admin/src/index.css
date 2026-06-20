@@ -2209,7 +2209,9 @@ select {
   transform-origin: center center;
   max-width: none;
   user-select: none;
-  pointer-events: none;
+  /* grab the image directly to move it (badges moved to the top overlay layer
+     and are pointer-events:none, so the image must be the hit target). */
+  pointer-events: auto;
 }
 
 .foe-item-placeholder {
@@ -2249,39 +2251,115 @@ select {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.foe-item-dot {
+/* Overlay (decoration) pin — top-layer grab handle, like a target's number. */
+.foe-dot-top {
   position: absolute;
-  top: -5px;
-  left: -5px;
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #a855f7;
-  border: 1px solid #1e293b;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  border: 2px solid #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: move;
 }
 
-/* Floating selected-item toolbar */
-.foe-toolbar {
+/* Top overlay — target numbers + selection frame/handles, above every image.
+   The layer itself passes clicks through; only the drag handles capture them. */
+.foe-overlay-top {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 50;
-  width: 240px;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.foe-badge-top {
+  /* active hit target above every image → grabs its own target even when the
+     target sits under another object. */
+  pointer-events: auto;
+  cursor: move;
+  transform: translate(-50%, -50%);
+}
+
+.foe-frame {
+  position: absolute;
+  transform-origin: center center;
+  border: 1px solid #3b82f6;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.foe-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #f8fafc;
+  border: 2px solid #3b82f6;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: nwse-resize;
+}
+
+.foe-handle--nw { left: 0; top: 0; }
+.foe-handle--ne { left: 100%; top: 0; }
+.foe-handle--se { left: 100%; top: 100%; }
+.foe-handle--sw { left: 0; top: 100%; }
+
+.foe-rot-line {
+  position: absolute;
+  left: 50%;
+  top: -26px;
+  width: 0;
+  height: 26px;
+  border-left: 1px solid #3b82f6;
+  pointer-events: none;
+}
+
+.foe-rot-handle {
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, calc(-50% - 26px));
+  border-radius: 50%;
+  background: #fbbf24;
+  border-color: #b45309;
+  cursor: grab;
+}
+
+.foe-bg-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+/* Selected-item settings panel — static, BELOW the working area (never covers it) */
+.foe-toolbar {
+  margin-top: 12px;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(15, 23, 42, 0.97);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+  padding: 12px 14px;
+  background: #0f172a;
   border: 1px solid #334155;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .foe-toolbar-title {
+  flex-basis: 100%;
   font-size: 13px;
   font-weight: 700;
   color: #e2e8f0;
+}
+
+.foe-toolbar .foe-tb-row {
+  flex: 0 1 auto;
+}
+
+.foe-toolbar .foe-tb-row input[type='range'] {
+  width: 140px;
+  flex: 0 0 auto;
 }
 
 .foe-tb-row {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api';
-import { IMAGE_ACCEPT } from '../asset-accept';
+import { AssetUploadWidget } from '../schema-form/SchemaForm';
 
 // ---------------------------------------------------------------------------
 // Config shape (mirrors minigames/find-object/schema.json)
@@ -37,6 +36,9 @@ interface Selection {
   kind: Kind;
   index: number;
 }
+
+// Natural pixel size of an item image, keyed by its URL.
+type NaturalMap = Record<string, { w: number; h: number }>;
 
 // ---------------------------------------------------------------------------
 // Colour-filter presets (CSS filter strings)
@@ -92,14 +94,18 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
 
   const [selection, setSelection] = useState<Selection | null>(null);
   const [preview, setPreview] = useState(false);
-  const [bgBusy, setBgBusy] = useState(false);
-  const [bgError, setBgError] = useState<string | null>(null);
-  const [addBusy, setAddBusy] = useState<Kind | null>(null);
 
   // Natural pixel size of the background (for the pixel↔screen scale factor)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  // Natural pixel size of each item image (for frame/handle geometry).
+  const [itemNatural, setItemNatural] = useState<NaturalMap>({});
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [stageWidth, setStageWidth] = useState(0);
+
+  const reportNatural = useCallback((url: string, w: number, h: number) => {
+    if (!url) return;
+    setItemNatural((prev) => (prev[url] ? prev : { ...prev, [url]: { w, h } }));
+  }, []);
 
   // Measure the rendered stage width so we can convert pixel↔screen.
   useEffect(() => {
@@ -164,31 +170,14 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
     [targets, commit],
   );
 
-  async function handleBackgroundUpload(file: File | undefined) {
-    if (!file) return;
-    setBgBusy(true);
-    setBgError(null);
-    try {
-      const asset = await api.uploadAsset(file);
-      setNatural(null);
-      commit({ backgroundImage: asset.url });
-    } catch (e) {
-      setBgError(e instanceof Error ? e.message : 'Ошибка загрузки');
-    } finally {
-      setBgBusy(false);
-    }
-  }
-
-  async function handleAddItem(kind: Kind, file: File | undefined) {
-    if (!file) return;
-    setAddBusy(kind);
-    try {
-      const asset = await api.uploadAsset(file);
-      // Place new item at the centre of the background (pixel coords).
+  // Create a new item from a chosen image URL (AssetUploadWidget already uploaded).
+  const addItem = useCallback(
+    (kind: Kind, url: string) => {
+      if (!url) return;
       const cx = natural ? natural.w / 2 : 0;
       const cy = natural ? natural.h / 2 : 0;
       const item: SceneItem = {
-        image: asset.url,
+        image: url,
         x: cx,
         y: cy,
         rotation: 0,
@@ -205,12 +194,9 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
         commit({ overlays: nextList });
         setSelection({ kind: 'overlay', index: nextList.length - 1 });
       }
-    } catch {
-      // upload errors are surfaced by background widget; keep palette quiet
-    } finally {
-      setAddBusy(null);
-    }
-  }
+    },
+    [natural, targets, overlays, commit],
+  );
 
   const selectedItem: SceneItem | null =
     selection === null
@@ -221,18 +207,16 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
     <div className='foe'>
       {/* Background controls */}
       <div className='foe-bg-bar'>
-        <label className='foe-upload-btn'>
-          {bgBusy ? 'Загрузка…' : backgroundImage ? 'Заменить фон' : '+ Загрузить фон'}
-          <input
-            type='file'
-            accept={IMAGE_ACCEPT}
-            hidden
-            disabled={bgBusy}
-            onChange={(e) => void handleBackgroundUpload(e.target.files?.[0] ?? undefined)}
-          />
-        </label>
+        <span className='foe-bg-label'>Фон:</span>
+        <AssetUploadWidget
+          kind='image'
+          value={backgroundImage}
+          onChange={(url) => {
+            setNatural(null);
+            commit({ backgroundImage: url });
+          }}
+        />
         {backgroundImage && <span className='foe-bg-url'>{backgroundImage}</span>}
-        {bgError && <span className='foe-error'>{bgError}</span>}
         <div className='foe-bar-spacer' />
         <label className='foe-preview-toggle'>
           <input
@@ -274,6 +258,7 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
                   selected={selection?.kind === 'overlay' && selection.index === i}
                   onSelect={() => setSelection({ kind: 'overlay', index: i })}
                   onMove={(x, y) => updateItem('overlay', i, { x, y })}
+                  onNatural={reportNatural}
                 />
               ))}
               {targets.map((it, i) => (
@@ -282,35 +267,37 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
                   item={it}
                   scale={scale}
                   kind='target'
-                  badge={i + 1}
                   preview={preview}
                   selected={selection?.kind === 'target' && selection.index === i}
                   onSelect={() => setSelection({ kind: 'target', index: i })}
                   onMove={(x, y) => updateItem('target', i, { x, y })}
+                  onNatural={reportNatural}
                 />
               ))}
+
+              {/* Top overlay: target numbers + selection frame/handles, always
+                  drawn above every image so overlapping items can't hide them. */}
+              {!preview && (
+                <StageOverlay
+                  targets={targets}
+                  overlays={overlays}
+                  scale={scale}
+                  selectedItem={selectedItem}
+                  natural={itemNatural}
+                  stageRef={stageRef}
+                  onResize={(s) =>
+                    selection && updateItem(selection.kind, selection.index, { scale: s })
+                  }
+                  onRotate={(r) =>
+                    selection && updateItem(selection.kind, selection.index, { rotation: r })
+                  }
+                  onSelectPin={(kind, i) => setSelection({ kind, index: i })}
+                  onMovePin={(kind, i, x, y) => updateItem(kind, i, { x, y })}
+                />
+              )}
             </div>
           ) : (
             <div className='foe-stage-empty'>Загрузите фоновое изображение, чтобы начать.</div>
-          )}
-
-          {/* Floating toolbar for the selected item */}
-          {!preview && selection && selectedItem && (
-            <ItemToolbar
-              item={selectedItem}
-              kind={selection.kind}
-              index={selection.index}
-              isFirst={selection.index === 0}
-              isLast={selection.index === (selection.kind === 'target' ? targets.length : overlays.length) - 1}
-              onPatch={(patch) => updateItem(selection.kind, selection.index, patch)}
-              onZ={(dir) =>
-                updateItem(selection.kind, selection.index, {
-                  zIndex: selectedItem.zIndex + dir,
-                })
-              }
-              onQueue={(dir) => moveInQueue(selection.index, dir)}
-              onRemove={() => removeItem(selection.kind, selection.index)}
-            />
           )}
         </div>
 
@@ -322,43 +309,61 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
               kind='target'
               items={targets}
               selection={selection}
-              busy={addBusy === 'target'}
               ordered
               onSelect={(i) => setSelection({ kind: 'target', index: i })}
-              onAdd={(f) => void handleAddItem('target', f)}
+              onAdd={(url) => addItem('target', url)}
             />
             <ItemList
               title='Декорации'
               kind='overlay'
               items={overlays}
               selection={selection}
-              busy={addBusy === 'overlay'}
               onSelect={(i) => setSelection({ kind: 'overlay', index: i })}
-              onAdd={(f) => void handleAddItem('overlay', f)}
+              onAdd={(url) => addItem('overlay', url)}
             />
           </div>
         )}
       </div>
+
+      {/* Settings panel for the selected item — BELOW the working area so it
+          never covers the stage. */}
+      {!preview && selection && selectedItem && (
+        <ItemToolbar
+          item={selectedItem}
+          kind={selection.kind}
+          index={selection.index}
+          isFirst={selection.index === 0}
+          isLast={
+            selection.index === (selection.kind === 'target' ? targets.length : overlays.length) - 1
+          }
+          onPatch={(patch) => updateItem(selection.kind, selection.index, patch)}
+          onZ={(dir) =>
+            updateItem(selection.kind, selection.index, { zIndex: selectedItem.zIndex + dir })
+          }
+          onQueue={(dir) => moveInQueue(selection.index, dir)}
+          onRemove={() => removeItem(selection.kind, selection.index)}
+        />
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Stage item — rendered over the background, draggable
+// Stage item — the image rendered over the background, draggable to move
 // ---------------------------------------------------------------------------
 
 interface StageItemProps {
   item: SceneItem;
   scale: number;
   kind: Kind;
-  badge?: number;
   preview: boolean;
   selected: boolean;
   onSelect: () => void;
   onMove: (x: number, y: number) => void;
+  onNatural: (url: string, w: number, h: number) => void;
 }
 
-function StageItem({ item, scale, kind, badge, preview, selected, onSelect, onMove }: StageItemProps) {
+function StageItem({ item, scale, kind, preview, selected, onSelect, onMove, onNatural }: StageItemProps) {
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number; moved: boolean } | null>(
     null,
   );
@@ -425,8 +430,11 @@ function StageItem({ item, scale, kind, badge, preview, selected, onSelect, onMo
           src={item.image}
           alt=''
           draggable={false}
+          onLoad={(e) => onNatural(item.image, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
           style={{
-            transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
+            // WYSIWYG: size scales with the background (naturalW * item.scale *
+            // stageScale) — the same way the engine scales its whole scene.
+            transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale * scale})`,
             filter: item.colorFilter || undefined,
           }}
         />
@@ -435,14 +443,185 @@ function StageItem({ item, scale, kind, badge, preview, selected, onSelect, onMo
           ?
         </div>
       )}
-      {!preview && badge !== undefined && <span className='foe-item-badge'>{badge}</span>}
-      {!preview && kind === 'overlay' && <span className='foe-item-dot' />}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Floating toolbar for the selected item
+// Top overlay — target number badges + the selected item's frame & handles.
+// Rendered last inside the stage with a very high z-index so nothing covers it.
+// ponytail: on-screen size = naturalW * item.scale * stageScale — the same
+// background-pixel scaling the engine applies to the whole scene (WYSIWYG).
+// ---------------------------------------------------------------------------
+
+interface StageOverlayProps {
+  targets: SceneItem[];
+  overlays: SceneItem[];
+  scale: number;
+  selectedItem: SceneItem | null;
+  natural: NaturalMap;
+  stageRef: React.RefObject<HTMLDivElement | null>;
+  onResize: (scale: number) => void;
+  onRotate: (rotation: number) => void;
+  onSelectPin: (kind: Kind, index: number) => void;
+  onMovePin: (kind: Kind, index: number, x: number, y: number) => void;
+}
+
+function StageOverlay({
+  targets,
+  overlays,
+  scale,
+  selectedItem,
+  natural,
+  stageRef,
+  onResize,
+  onRotate,
+  onSelectPin,
+  onMovePin,
+}: StageOverlayProps) {
+  const drag = useRef<{ mode: 'scale' | 'rotate'; cx: number; cy: number; halfDiag: number } | null>(null);
+
+  // A pin (target number / overlay dot) is an always-on-top drag handle bound to
+  // ITS item, so you can grab the item by its pin even when it sits under another.
+  const pinDrag = useRef<{ kind: Kind; i: number; sx: number; sy: number; bx: number; by: number } | null>(null);
+  function pinDown(kind: Kind, i: number) {
+    return (e: React.PointerEvent) => {
+      const it = (kind === 'target' ? targets : overlays)[i];
+      if (!it) return;
+      e.stopPropagation();
+      onSelectPin(kind, i);
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      pinDrag.current = { kind, i, sx: e.clientX, sy: e.clientY, bx: it.x, by: it.y };
+    };
+  }
+  function pinMove(e: React.PointerEvent) {
+    const d = pinDrag.current;
+    if (!d || scale <= 0) return;
+    const dx = (e.clientX - d.sx) / scale;
+    const dy = (e.clientY - d.sy) / scale;
+    onMovePin(d.kind, d.i, Math.round(d.bx + dx), Math.round(d.by + dy));
+  }
+  function pinUp(e: React.PointerEvent) {
+    pinDrag.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  }
+  const pinEvents = { onPointerMove: pinMove, onPointerUp: pinUp, onPointerCancel: pinUp };
+
+  function stageLocal(e: React.PointerEvent): [number, number] {
+    const r = stageRef.current?.getBoundingClientRect();
+    if (!r) return [0, 0];
+    return [e.clientX - r.left, e.clientY - r.top];
+  }
+
+  function start(mode: 'scale' | 'rotate') {
+    return (e: React.PointerEvent) => {
+      if (!selectedItem) return;
+      e.stopPropagation();
+      const nat = natural[selectedItem.image] ?? { w: 80, h: 80 };
+      drag.current = {
+        mode,
+        cx: selectedItem.x * scale,
+        cy: selectedItem.y * scale,
+        // screen px half-diagonal at item.scale=1 (matches the scaled <img>).
+        halfDiag: (Math.hypot(nat.w / 2, nat.h / 2) || 1) * (scale || 1),
+      };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+  }
+
+  function move(e: React.PointerEvent) {
+    const d = drag.current;
+    if (!d) return;
+    const [mx, my] = stageLocal(e);
+    if (d.mode === 'scale') {
+      const dist = Math.hypot(mx - d.cx, my - d.cy);
+      const s = Math.max(0.05, Math.min(20, dist / d.halfDiag));
+      onResize(Math.round(s * 100) / 100);
+    } else {
+      // handle points "up" at 0°; normalize into the slider's [-180, 180] range.
+      const raw = (Math.atan2(my - d.cy, mx - d.cx) * 180) / Math.PI + 90;
+      const ang = ((((raw + 180) % 360) + 360) % 360) - 180;
+      onRotate(Math.round(ang));
+    }
+  }
+
+  function up(e: React.PointerEvent) {
+    drag.current = null;
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleEvents = { onPointerMove: move, onPointerUp: up, onPointerCancel: up };
+
+  let frame: JSX.Element | null = null;
+  if (selectedItem) {
+    const nat = natural[selectedItem.image] ?? { w: 80, h: 80 };
+    const w = nat.w * selectedItem.scale * scale;
+    const h = nat.h * selectedItem.scale * scale;
+    frame = (
+      <div
+        className='foe-frame'
+        style={{
+          left: `${selectedItem.x * scale}px`,
+          top: `${selectedItem.y * scale}px`,
+          width: `${w}px`,
+          height: `${h}px`,
+          transform: `translate(-50%, -50%) rotate(${selectedItem.rotation}deg)`,
+        }}
+      >
+        <div className='foe-rot-line' />
+        <div className='foe-handle foe-rot-handle' title='Поворот' onPointerDown={start('rotate')} {...handleEvents} />
+        {(['nw', 'ne', 'se', 'sw'] as const).map((c) => (
+          <div
+            key={c}
+            className={`foe-handle foe-handle--${c}`}
+            title='Размер'
+            onPointerDown={start('scale')}
+            {...handleEvents}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className='foe-overlay-top'>
+      {overlays.map((it, i) => (
+        <span
+          key={`o-${i}`}
+          className='foe-dot-top'
+          style={{ left: `${it.x * scale}px`, top: `${it.y * scale}px` }}
+          title='Декорация — тяните за точку, чтобы двигать'
+          onPointerDown={pinDown('overlay', i)}
+          {...pinEvents}
+        />
+      ))}
+      {targets.map((it, i) => (
+        <span
+          key={`t-${i}`}
+          className='foe-item-badge foe-badge-top'
+          style={{ left: `${it.x * scale}px`, top: `${it.y * scale}px` }}
+          title={`Цель #${i + 1} — тяните за номер, чтобы двигать`}
+          onPointerDown={pinDown('target', i)}
+          {...pinEvents}
+        >
+          {i + 1}
+        </span>
+      ))}
+      {frame}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Settings panel for the selected item (rendered below the working area)
 // ---------------------------------------------------------------------------
 
 interface ItemToolbarProps {
@@ -461,10 +640,15 @@ function ItemToolbar({ item, kind, index, isFirst, isLast, onPatch, onZ, onQueue
   const presetMatch = FILTER_PRESETS.find((p) => p.value === item.colorFilter);
 
   return (
-    <div className='foe-toolbar' onPointerDown={(e) => e.stopPropagation()}>
+    <div className='foe-toolbar'>
       <div className='foe-toolbar-title'>
         {kind === 'target' ? `Цель #${index + 1}` : 'Декорация'}
       </div>
+
+      <label className='foe-tb-row'>
+        <span>Картинка</span>
+        <AssetUploadWidget kind='image' value={item.image} onChange={(url) => onPatch({ image: url })} />
+      </label>
 
       <label className='foe-tb-row'>
         <span>Поворот</span>
@@ -559,13 +743,12 @@ interface ItemListProps {
   kind: Kind;
   items: SceneItem[];
   selection: Selection | null;
-  busy: boolean;
   ordered?: boolean;
   onSelect: (index: number) => void;
-  onAdd: (file: File | undefined) => void;
+  onAdd: (url: string) => void;
 }
 
-function ItemList({ title, kind, items, selection, busy, ordered, onSelect, onAdd }: ItemListProps) {
+function ItemList({ title, kind, items, selection, ordered, onSelect, onAdd }: ItemListProps) {
   return (
     <div className='foe-list'>
       <div className='foe-list-title'>{title}</div>
@@ -590,16 +773,8 @@ function ItemList({ title, kind, items, selection, busy, ordered, onSelect, onAd
         })}
         {items.length === 0 && <span className='foe-list-empty'>пусто</span>}
       </div>
-      <label className='foe-upload-btn foe-list-add'>
-        {busy ? 'Загрузка…' : '+ Загрузить'}
-        <input
-          type='file'
-          accept={IMAGE_ACCEPT}
-          hidden
-          disabled={busy}
-          onChange={(e) => onAdd(e.target.files?.[0] ?? undefined)}
-        />
-      </label>
+      {/* file / assets / draw — shared widget; onChange creates the item */}
+      <AssetUploadWidget kind='image' value='' onChange={onAdd} />
     </div>
   );
 }
