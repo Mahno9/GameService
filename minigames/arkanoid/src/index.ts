@@ -327,7 +327,9 @@ export function init(
   exitBtn.title = 'Выйти';
   exitBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    fireExit();
+    if (window.confirm('Выйти из игры? Весь прогресс будет потерян.')) {
+      fireExit();
+    }
   });
   hudControls.appendChild(muteBtn);
   hudControls.appendChild(exitBtn);
