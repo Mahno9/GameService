@@ -98,9 +98,10 @@ interface AssetWidgetProps {
   kind: 'image' | 'gif' | 'audio';
   value: string;
   onChange: (url: string) => void;
+  hidePreview?: boolean;
 }
 
-function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
+function AssetUploadWidget({ kind, value, onChange, hidePreview = false }: AssetWidgetProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState<'idle' | 'init' | 'rec'>('idle');
@@ -249,17 +250,17 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
           <button
             type='button'
             className='sf-icon-btn'
-            title='Убрать'
+            title='Очистить'
             onClick={() => onChange('')}
             disabled={busy}
           >
-            ✕
+            🗑
           </button>
         )}
       </div>
       {busy && <span className='sf-asset-hint'>Загрузка…</span>}
       {error && <span className='sf-asset-error'>{error}</span>}
-      {value && kind === 'audio' && (
+      {!hidePreview && value && kind === 'audio' && (
         <audio className='sf-asset-preview' controls src={value} />
       )}
       {drawing && (
@@ -275,6 +276,66 @@ function AssetUploadWidget({ kind, value, onChange }: AssetWidgetProps) {
           onClose={() => setPicking(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-audio widget — list of weighted sound assets
+// ---------------------------------------------------------------------------
+
+export type WeightedAudio = { url: string; weight: number };
+
+export function normalizeAudio(val: unknown): WeightedAudio[] {
+  if (!val) return [];
+  if (typeof val === 'string') return val ? [{ url: val, weight: 1 }] : [];
+  if (Array.isArray(val)) return val as WeightedAudio[];
+  return [];
+}
+
+export function MultiAudioWidget({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
+  const items = normalizeAudio(value);
+  return (
+    <div className='sf-multi-audio'>
+      {items.map((item, i) => (
+        <div key={i} className='sf-multi-audio-entry'>
+          {i > 0 && <hr className='sf-multi-audio-sep' />}
+          <div className='sf-multi-audio-header'>
+            <AssetUploadWidget
+              kind='audio'
+              value={item.url}
+              onChange={(url) => onChange(items.map((x, j) => j === i ? { ...x, url } : x))}
+              hidePreview
+            />
+            <button
+              type='button'
+              className='sf-icon-btn sf-multi-audio-delete'
+              title='Удалить этот вариант'
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+            >
+              ✕
+            </button>
+          </div>
+          <div className='sf-multi-audio-player-row'>
+            {item.url && (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <audio className='sf-multi-audio-player' controls src={item.url} />
+            )}
+            <label className='sf-multi-audio-weight'>
+              <span>Вес</span>
+              <input
+                type='number'
+                min={1}
+                value={item.weight}
+                onChange={(e) => onChange(items.map((x, j) => j === i ? { ...x, weight: Math.max(1, Number(e.target.value) || 1) } : x))}
+              />
+            </label>
+          </div>
+        </div>
+      ))}
+      <button type='button' className='sf-pick-btn' onClick={() => onChange([...items, { url: '', weight: 1 }])}>
+        + Добавить звук
+      </button>
     </div>
   );
 }
@@ -336,10 +397,18 @@ function Field({ schema, value, onChange, label }: FieldProps) {
     );
   }
 
-  // x-type asset widgets (string-typed)
+  // x-type asset widgets
   const xType = schema['x-type'];
-  if (xType === 'asset:image' || xType === 'asset:gif' || xType === 'asset:audio') {
-    const kind = xType === 'asset:audio' ? 'audio' : xType === 'asset:gif' ? 'gif' : 'image';
+  if (xType === 'asset:audio') {
+    return (
+      <div className='sf-field sf-field--full'>
+        {title && <span className='sf-label'>{title}</span>}
+        <MultiAudioWidget value={value} onChange={onChange} />
+      </div>
+    );
+  }
+  if (xType === 'asset:image' || xType === 'asset:gif') {
+    const kind = xType === 'asset:gif' ? 'gif' : 'image';
     return (
       <div className='sf-field sf-field--full'>
         {title && <span className='sf-label'>{title}</span>}

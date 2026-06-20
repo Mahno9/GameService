@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, type Asset, type Settings } from '../api';
+import { MultiAudioWidget, normalizeAudio, type WeightedAudio } from '../schema-form/SchemaForm';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,55 +60,6 @@ function AssetCard({ asset, onDelete }: AssetCardProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Sound picker modal
-// ---------------------------------------------------------------------------
-
-interface SoundPickerProps {
-  audioAssets: Asset[];
-  currentUrl: string | null;
-  onSelect: (url: string | null) => void;
-  onClose: () => void;
-}
-
-function SoundPicker({ audioAssets, currentUrl, onSelect, onClose }: SoundPickerProps) {
-  return (
-    <div className='modal-overlay' onClick={onClose}>
-      <div
-        className='modal-card'
-        style={{ maxWidth: 480 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className='modal-header'>
-          <span className='modal-title'>Выбрать звук нажатия</span>
-          <button className='modal-close' onClick={onClose}>✕</button>
-        </div>
-        <div className='modal-body'>
-          {audioAssets.length === 0 ? (
-            <p className='assets-empty'>Нет загруженных аудиофайлов</p>
-          ) : (
-            <div className='sound-picker-list'>
-              {audioAssets.map((a) => (
-                <button
-                  key={a.id}
-                  className={`sound-picker-item${currentUrl === a.url ? ' sound-picker-item--active' : ''}`}
-                  onClick={() => { onSelect(a.url); onClose(); }}
-                >
-                  <span className='sound-picker-name'>{a.originalName}</span>
-                  <span className='asset-size'>{formatSize(a.sizeBytes)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className='modal-actions'>
-          <button onClick={onClose}>Отмена</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main section
 // ---------------------------------------------------------------------------
 
@@ -117,10 +69,9 @@ export function AssetsSection() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [soundUrl, setSoundUrl] = useState<string | null>(null);
+  const [sounds, setSounds] = useState<WeightedAudio[]>([]);
   const [soundSaving, setSoundSaving] = useState(false);
   const [soundSaved, setSoundSaved] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load assets + settings on mount
@@ -128,7 +79,7 @@ export function AssetsSection() {
     void Promise.all([api.getAssets(), api.getSettings()]).then(([list, s]) => {
       setAssets(list);
       setSettings(s);
-      setSoundUrl(s.ui_click_sound_url);
+      setSounds(normalizeAudio(s.ui_click_sound_url));
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -152,24 +103,27 @@ export function AssetsSection() {
   }
 
   async function handleDelete(id: string) {
+    const deleted = assets.find((a) => a.id === id);
     try {
       await api.deleteAsset(id);
       setAssets((prev) => prev.filter((a) => a.id !== id));
-      // If deleted asset was the current sound, clear it
-      const deleted = assets.find((a) => a.id === id);
-      if (deleted && soundUrl === deleted.url) {
-        await saveSoundUrl(null);
+      if (deleted) {
+        const next = sounds.filter((s) => s.url !== deleted.url);
+        if (next.length !== sounds.length) {
+          setSounds(next);
+          await saveSounds(next);
+        }
       }
     } catch {
       // ignore
     }
   }
 
-  async function saveSoundUrl(url: string | null) {
+  async function saveSounds(list: WeightedAudio[]) {
     setSoundSaving(true);
     try {
-      const updated = await api.updateSettings({ ui_click_sound_url: url });
-      setSoundUrl(updated.ui_click_sound_url);
+      const updated = await api.updateSettings({ ui_click_sound_url: list.length ? list : null });
+      setSounds(normalizeAudio(updated.ui_click_sound_url));
       setSettings(updated);
       setSoundSaved(true);
       setTimeout(() => setSoundSaved(false), 2000);
@@ -179,9 +133,6 @@ export function AssetsSection() {
       setSoundSaving(false);
     }
   }
-
-  const audioAssets = assets.filter((a) => a.kind === 'audio');
-  const currentSoundAsset = soundUrl ? assets.find((a) => a.url === soundUrl) : undefined;
 
   return (
     <div className='assets-section'>
@@ -222,42 +173,13 @@ export function AssetsSection() {
       {/* Sound setting block */}
       <div className='assets-sound-block'>
         <h4 className='assets-block-title'>Звук нажатия кнопок (мета)</h4>
-        <div className='assets-sound-row'>
-          {soundUrl ? (
-            <>
-              <span className='assets-sound-name'>
-                {currentSoundAsset?.originalName ?? soundUrl}
-              </span>
-              {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-              <audio controls src={soundUrl} className='assets-sound-preview' />
-            </>
-          ) : (
-            <span className='assets-sound-none'>Не задан</span>
-          )}
-        </div>
+        <MultiAudioWidget value={sounds} onChange={(v) => setSounds(normalizeAudio(v))} />
         <div className='assets-sound-actions'>
-          <button
-            disabled={soundSaving || audioAssets.length === 0}
-            onClick={() => setShowPicker(true)}
-          >
-            Выбрать из загруженных
+          <button disabled={soundSaving} onClick={() => void saveSounds(sounds)}>
+            Сохранить
           </button>
-          {soundUrl && (
-            <button
-              className='assets-sound-clear-btn'
-              disabled={soundSaving}
-              onClick={() => { void saveSoundUrl(null); }}
-            >
-              Очистить
-            </button>
-          )}
           {soundSaved && <span className='assets-sound-saved'>Сохранено ✓</span>}
         </div>
-        {audioAssets.length === 0 && (
-          <p className='assets-sound-hint'>
-            Загрузите аудиофайл (mp3, ogg, wav) в ассеты, чтобы выбрать его здесь.
-          </p>
-        )}
       </div>
 
       {/* Asset grid */}
@@ -271,15 +193,6 @@ export function AssetsSection() {
             <AssetCard key={a.id} asset={a} onDelete={(id) => { void handleDelete(id); }} />
           ))}
         </div>
-      )}
-
-      {showPicker && (
-        <SoundPicker
-          audioAssets={audioAssets}
-          currentUrl={soundUrl}
-          onSelect={(url) => { void saveSoundUrl(url); }}
-          onClose={() => setShowPicker(false)}
-        />
       )}
     </div>
   );
