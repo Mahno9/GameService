@@ -24,6 +24,17 @@
             "title": "Изображение",
             "x-type": "asset:image"
           },
+          "imageCrop": {
+            "type": "object",
+            "title": "Кадрирование",
+            "x-type": "image-crop",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "w": { "type": "number" },
+              "h": { "type": "number" }
+            }
+          },
           "shuffleMoves": {
             "type": "integer",
             "title": "Сложность перемешивания",

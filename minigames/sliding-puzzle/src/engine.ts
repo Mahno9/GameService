@@ -124,3 +124,35 @@ export function scoreForElapsed(thresholds: ScoreThreshold[], elapsedSeconds: nu
 
   return best !== null ? best.points : 0;
 }
+
+/** Normalized crop rect over the source image (each in [0,1]). */
+export interface Crop {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * CSS background-size/position for one tile so the chosen crop region of the
+ * image is stretched across the whole NxN board and this tile shows its slice.
+ * With no crop (cw=ch=1) it reduces to the classic `gridSize*100%` /
+ * `col/(gridSize-1)` mapping (whole image stretched to the board).
+ */
+export function tileBackground(
+  gridSize: number,
+  srcCol: number,
+  srcRow: number,
+  crop?: Crop,
+): { size: string; position: string } {
+  const cx = crop?.x ?? 0;
+  const cy = crop?.y ?? 0;
+  const cw = crop?.w ?? 1;
+  const ch = crop?.h ?? 1;
+  return {
+    size: `${(gridSize / cw) * 100}% ${(gridSize / ch) * 100}%`,
+    position:
+      `${((gridSize * cx + srcCol * cw) / (gridSize - cw)) * 100}% ` +
+      `${((gridSize * cy + srcRow * ch) / (gridSize - ch)) * 100}%`,
+  };
+}

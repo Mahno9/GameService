@@ -5,6 +5,7 @@ import {
   movableIndices,
   shuffle,
   scoreForElapsed,
+  tileBackground,
   type Board,
 } from './engine.js';
 
@@ -200,5 +201,41 @@ describe('scoreForElapsed', () => {
 
   it('returns points for elapsed=0 with valid threshold', () => {
     expect(scoreForElapsed(thresholds, 0)).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// tileBackground
+// ---------------------------------------------------------------------------
+
+describe('tileBackground', () => {
+  it('crop=undefined reduces to the legacy whole-image mapping', () => {
+    const g = 4;
+    for (const [col, row] of [[0, 0], [1, 2], [3, 3]] as const) {
+      const bg = tileBackground(g, col, row);
+      expect(bg.size).toBe(`${g * 100}% ${g * 100}%`);
+      expect(bg.position).toBe(`${(col / (g - 1)) * 100}% ${(row / (g - 1)) * 100}%`);
+    }
+  });
+
+  // Independently re-derive which image fraction a tile shows from CSS
+  // background-size/position semantics, then check it equals the crop slice.
+  function visibleFractionX(bg: { size: string; position: string }) {
+    const sizePct = parseFloat(bg.size.split(' ')[0] as string);
+    const posPct = parseFloat(bg.position.split(' ')[0] as string);
+    const T = 100; // element width (percentages cancel the image's natural size)
+    const D = (sizePct / 100) * T; // displayed image width
+    const offset = (posPct / 100) * (T - D); // image left edge
+    return { left: -offset / D, right: (T - offset) / D };
+  }
+
+  it('maps each tile to the correct slice of the crop region', () => {
+    const g = 3;
+    const crop = { x: 0.2, y: 0.1, w: 0.5, h: 0.6 };
+    for (let col = 0; col < g; col++) {
+      const { left, right } = visibleFractionX(tileBackground(g, col, 0, crop));
+      expect(left).toBeCloseTo(crop.x + (col * crop.w) / g, 10);
+      expect(right).toBeCloseTo(crop.x + ((col + 1) * crop.w) / g, 10);
+    }
   });
 });

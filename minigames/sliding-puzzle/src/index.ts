@@ -5,7 +5,9 @@ import {
   applyMove,
   shuffle,
   scoreForElapsed,
+  tileBackground,
   type ScoreThreshold,
+  type Crop,
 } from './engine.js';
 
 // ---------------------------------------------------------------------------
@@ -14,6 +16,7 @@ import {
 
 interface RoundConfig {
   image: string;
+  imageCrop?: Crop;
   shuffleMoves: number;
   scoreThresholds: ScoreThreshold[];
 }
@@ -387,9 +390,10 @@ export function init(
         // background-image
         const srcCol = (value - 1) % gridSize;
         const srcRow = Math.floor((value - 1) / gridSize);
+        const bg = tileBackground(gridSize, srcCol, srcRow, roundCfg.imageCrop);
         tileEl.style.backgroundImage = `url(${JSON.stringify(roundCfg.image)})`;
-        tileEl.style.backgroundSize = `${gridSize * 100}% ${gridSize * 100}%`;
-        tileEl.style.backgroundPosition = `${(srcCol / (gridSize - 1)) * 100}% ${(srcRow / (gridSize - 1)) * 100}%`;
+        tileEl.style.backgroundSize = bg.size;
+        tileEl.style.backgroundPosition = bg.position;
         tileEl.style.backgroundRepeat = 'no-repeat';
 
         tileEl.addEventListener('pointerdown', (e) => {
