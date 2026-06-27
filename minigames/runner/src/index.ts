@@ -35,6 +35,9 @@ interface GameConfig {
   lives: number;
   speedCurve: SpeedPoint[];
   characterAsset?: string;
+  characterJumpUpAsset?: string;
+  characterJumpDownAsset?: string;
+  characterCrouchAsset?: string;
   backgroundLayers?: BackgroundLayer[];
   obstacleTypes: ObstacleType[];
   sounds?: SoundsConfig;
@@ -311,7 +314,11 @@ export function init(
   hudControls.appendChild(exitBtn);
 
   // --- asset loading ---
-  let charImg: HTMLImageElement | null = null;
+  // Per-state character images; each optional state falls back to run.
+  let charRunImg: HTMLImageElement | null = null;
+  let charJumpUpImg: HTMLImageElement | null = null;
+  let charJumpDownImg: HTMLImageElement | null = null;
+  let charCrouchImg: HTMLImageElement | null = null;
   const obsImages: Map<number, HTMLImageElement> = new Map();
   const overcomeImages: Map<number, HTMLImageElement> = new Map();
   const bgImages: HTMLImageElement[] = [];
@@ -425,6 +432,14 @@ export function init(
       Math.floor(timestamp * INVULN_BLINK_HZ / 1000) % 2 === 0;
 
     if (!blink) {
+      // Pick the character image for the current state; unset states fall back to run.
+      const charImg = state.crouching
+        ? charCrouchImg ?? charRunImg
+        : !state.grounded
+          ? state.charVY < 0
+            ? charJumpUpImg ?? charRunImg
+            : charJumpDownImg ?? charRunImg
+          : charRunImg;
       if (charImg && charImg.complete && charImg.naturalWidth > 0) {
         ctx.drawImage(charImg, charX, charY, charW, charH);
       } else {
@@ -610,11 +625,16 @@ export function init(
     const promises: Promise<void>[] = [];
 
     if (config.characterAsset) {
-      promises.push(
-        loadImage(config.characterAsset).then((img) => {
-          charImg = img;
-        }),
-      );
+      promises.push(loadImage(config.characterAsset).then((img) => { charRunImg = img; }));
+    }
+    if (config.characterJumpUpAsset) {
+      promises.push(loadImage(config.characterJumpUpAsset).then((img) => { charJumpUpImg = img; }));
+    }
+    if (config.characterJumpDownAsset) {
+      promises.push(loadImage(config.characterJumpDownAsset).then((img) => { charJumpDownImg = img; }));
+    }
+    if (config.characterCrouchAsset) {
+      promises.push(loadImage(config.characterCrouchAsset).then((img) => { charCrouchImg = img; }));
     }
 
     if (config.backgroundLayers) {

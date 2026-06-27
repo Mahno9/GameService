@@ -32,7 +32,22 @@
     },
     "characterAsset": {
       "type": "string",
-      "title": "Персонаж",
+      "title": "Персонаж — бег",
+      "x-type": "asset:gif"
+    },
+    "characterJumpUpAsset": {
+      "type": "string",
+      "title": "Персонаж — прыжок вверх (необяз.)",
+      "x-type": "asset:gif"
+    },
+    "characterJumpDownAsset": {
+      "type": "string",
+      "title": "Персонаж — падение вниз (необяз.)",
+      "x-type": "asset:gif"
+    },
+    "characterCrouchAsset": {
+      "type": "string",
+      "title": "Персонаж — присед (необяз.)",
       "x-type": "asset:gif"
     },
     "backgroundLayers": {
