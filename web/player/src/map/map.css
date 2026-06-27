@@ -153,7 +153,12 @@
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  /* Anchor 'bottom' means the icon tip sits on the coordinate. */
+  /* Anchor 'bottom' pins the box's bottom edge to the coordinate. Keep the box =
+     just the icon (label is positioned out of flow) so the pin's tip — not the
+     bottom of the label — marks the point; otherwise the offset slides as the
+     map rotates. rotate(-45deg) pushes the teardrop tip ~5px below its 26px box,
+     so pad that much to land the tip exactly on the coordinate. */
+  padding-bottom: 5px;
 }
 
 .poi-marker-icon {
@@ -187,7 +192,11 @@
 }
 
 .poi-marker-label {
-  margin-top: 4px;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
   max-width: 110px;
   padding: 1px 6px;
   border-radius: 6px;
