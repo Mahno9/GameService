@@ -8,3 +8,4 @@ dist/
 .vite/
 .codegraph/
 server/static/minigames/
+.fablize/
