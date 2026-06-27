@@ -25,9 +25,9 @@
         "required": ["distance", "speed"]
       },
       "default": [
-        { "distance": 0, "speed": 6 },
-        { "distance": 500, "speed": 10 },
-        { "distance": 2000, "speed": 16 }
+        { "distance": 0, "speed": 180 },
+        { "distance": 500, "speed": 240 },
+        { "distance": 2000, "speed": 320 }
       ]
     },
     "characterAsset": {
@@ -74,6 +74,9 @@
     "obstacleTypes": {
       "type": "array",
       "title": "Типы препятствий",
+      "default": [
+        { "width": 44, "height": 72, "weight": 1 }
+      ],
       "items": {
         "type": "object",
         "properties": {
@@ -113,6 +116,11 @@
       "type": "string",
       "title": "Фоновая музыка",
       "x-type": "asset:audio"
+    },
+    "debugCollisions": {
+      "type": "boolean",
+      "title": "Отладка коллизий",
+      "default": false
     }
   },
   "required": ["lives", "speedCurve", "obstacleTypes"]

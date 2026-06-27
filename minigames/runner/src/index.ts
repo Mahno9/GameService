@@ -11,6 +11,7 @@ import {
   CHAR_X,
   CHAR_WIDTH,
   CHAR_HEIGHT,
+  FORGIVENESS,
 } from './engine.js';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,7 @@ interface GameConfig {
   sounds?: SoundsConfig;
   music?: string | W[];
   muted?: boolean;
+  debugCollisions?: boolean;
 }
 
 interface GameResult {
@@ -63,6 +65,7 @@ const PREFIX = 'rn-';
 const FADE_MS = 300;
 const INVULN_BLINK_HZ = 8; // blinks per second during invulnerability
 const OVERCOME_SPRITE_MS = 600; // how long to show overcomeImage
+const MUTE_STORAGE_KEY = 'gameservice:runner:muted';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -109,6 +112,25 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () => resolve(img); // resolve even on error; draw fallback
     img.src = url;
   });
+}
+
+function readMuted(fallback: boolean): boolean {
+  try {
+    const stored = localStorage.getItem(MUTE_STORAGE_KEY);
+    if (stored === '1') return true;
+    if (stored === '0') return false;
+  } catch {
+    // Storage may be unavailable in private/embedded contexts.
+  }
+  return fallback;
+}
+
+function saveMuted(value: boolean): void {
+  try {
+    localStorage.setItem(MUTE_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    // Best-effort device preference.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -233,7 +255,7 @@ export function init(
   });
 
   // --- state ---
-  let muted = config.muted === true;
+  let muted = readMuted(config.muted === true);
   let done = false;
   let rafId = 0;
   let lastTime: number | null = null;
@@ -296,6 +318,7 @@ export function init(
   muteBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     muted = !muted;
+    saveMuted(muted);
     muteBtn.textContent = muted ? '🔇' : '🔊';
     if (musicAudio) {
       musicAudio.muted = muted;
@@ -451,6 +474,36 @@ export function init(
         ctx.arc(charX + charW / 2, charY + charW / 2, charW / 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
+    }
+
+    if (config.debugCollisions) {
+      ctx.save();
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.strokeRect(charX, charY, charW, charH);
+
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.95)';
+      ctx.fillStyle = 'rgba(0, 255, 255, 0.12)';
+      const hitX = (CHAR_X - CHAR_WIDTH / 2 + CHAR_WIDTH * FORGIVENESS) * scale;
+      const hitY = (state.charY - (state.crouching ? CHAR_HEIGHT / 2 : CHAR_HEIGHT) * (1 - FORGIVENESS)) * scale;
+      const hitW = CHAR_WIDTH * (1 - FORGIVENESS * 2) * scale;
+      const hitH = (state.crouching ? CHAR_HEIGHT / 2 : CHAR_HEIGHT) * (1 - FORGIVENESS * 2) * scale;
+      ctx.fillRect(hitX, hitY, hitW, hitH);
+      ctx.strokeRect(hitX, hitY, hitW, hitH);
+
+      ctx.strokeStyle = 'rgba(255, 64, 64, 0.95)';
+      ctx.fillStyle = 'rgba(255, 64, 64, 0.12)';
+      for (const obs of state.obstacles) {
+        const ox = obs.x * scale;
+        const ow = obs.width * scale;
+        const oh = obs.height * scale;
+        const oy = groundPx - oh;
+        ctx.fillRect(ox, oy, ow, oh);
+        ctx.strokeRect(ox, oy, ow, oh);
+      }
+      ctx.restore();
     }
   }
 
