@@ -38,7 +38,6 @@ interface LoadedSettings {
   gps_timeout_min: number;
   trigger_radius_m: number;
   sync_interval_s: number;
-  ui_click_sound_url: string | null;
 }
 
 interface BootData {
@@ -130,7 +129,6 @@ export function App() {
             gps_timeout_min: settings.gps_timeout_min,
             trigger_radius_m: settings.trigger_radius_m,
             sync_interval_s: settings.sync_interval_s,
-            ui_click_sound_url: settings.ui_click_sound_url ?? null,
           },
           bboxCenter: debugStart ?? bboxCenter(meta.bbox),
           pois,
