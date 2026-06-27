@@ -210,6 +210,7 @@ export function FindObjectEditor({ value, onChange }: FindObjectEditorProps) {
         <span className='foe-bg-label'>Фон:</span>
         <AssetUploadWidget
           kind='image'
+          hidePreview
           value={backgroundImage}
           onChange={(url) => {
             setNatural(null);
@@ -647,7 +648,7 @@ function ItemToolbar({ item, kind, index, isFirst, isLast, onPatch, onZ, onQueue
 
       <label className='foe-tb-row'>
         <span>Картинка</span>
-        <AssetUploadWidget kind='image' value={item.image} onChange={(url) => onPatch({ image: url })} />
+        <AssetUploadWidget kind='image' hidePreview value={item.image} onChange={(url) => onPatch({ image: url })} />
       </label>
 
       <label className='foe-tb-row'>
@@ -774,7 +775,7 @@ function ItemList({ title, kind, items, selection, ordered, onSelect, onAdd }: I
         {items.length === 0 && <span className='foe-list-empty'>пусто</span>}
       </div>
       {/* file / assets / draw — shared widget; onChange creates the item */}
-      <AssetUploadWidget kind='image' value='' onChange={onAdd} />
+      <AssetUploadWidget kind='image' hidePreview value='' onChange={onAdd} />
     </div>
   );
 }

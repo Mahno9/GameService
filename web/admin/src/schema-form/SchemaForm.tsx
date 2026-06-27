@@ -5,6 +5,7 @@ import { CurveEditor } from './CurveEditor';
 import { DrawModal } from './DrawModal';
 import { AssetPickerModal } from './AssetPickerModal';
 import { LiveNumberInput } from './LiveNumberInput';
+import { ImageCropField, type Crop } from './ImageCropField';
 import type { Asset } from '../api';
 
 // ---------------------------------------------------------------------------
@@ -263,6 +264,9 @@ export function AssetUploadWidget({ kind, value, onChange, hidePreview = false }
       {error && <span className='sf-asset-error'>{error}</span>}
       {!hidePreview && value && kind === 'audio' && (
         <audio className='sf-asset-preview' controls src={value} />
+      )}
+      {!hidePreview && value && kind !== 'audio' && (
+        <img className='sf-asset-preview-img' src={value} alt='' />
       )}
       {drawing && (
         <DrawModal
@@ -590,6 +594,18 @@ function ObjectField({ schema, value, onChange, label }: FieldProps) {
 
   const fields: JSX.Element[] = [];
   for (const [key, sub] of Object.entries(props)) {
+    if (sub['x-type'] === 'image-crop') {
+      // crop widget needs the sibling image URL → render it here, not in Field()
+      fields.push(
+        <ImageCropField
+          key={key}
+          imageUrl={typeof obj.image === 'string' ? obj.image : undefined}
+          value={obj[key] as Crop | undefined}
+          onChange={(next) => setKey(key, next as Json)}
+        />
+      );
+      continue;
+    }
     fields.push(
       <Field
         key={key}
